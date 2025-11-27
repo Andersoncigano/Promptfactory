@@ -139,3 +139,23 @@ export const CyberTooltip: React.FC<{ content: string; children: React.ReactNode
     </div>
   );
 };
+
+export const CyberModal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }> = ({ isOpen, onClose, title, children }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
+      <div className="relative w-full max-w-2xl animate-fadeIn">
+        <CyberPanel title={title}>
+          <div className="absolute top-4 right-4">
+            <button onClick={onClose} className="text-[#7b2cbf] hover:text-[#39ff14] transition-colors">
+              [CLOSE_X]
+            </button>
+          </div>
+          {children}
+        </CyberPanel>
+      </div>
+    </div>
+  );
+};

@@ -1,8 +1,36 @@
 import React, { useState } from 'react';
 import { optimizePrompt } from './services/geminiService';
 import { PromptAnalysis } from './types';
-import { CyberButton, CyberPanel, SectionHeader } from './components/CyberComponents';
+import { CyberButton, CyberPanel, SectionHeader, CyberModal } from './components/CyberComponents';
 import { AnalysisView } from './components/AnalysisView';
+
+// Template Data
+const BLUEPRINTS = [
+  {
+    id: 'sys-architect',
+    title: 'SYSTEM ARCHITECT',
+    desc: 'Ideal para geração de código complexo e arquitetura de software.',
+    prompt: 'Atue como um Arquiteto de Software Sênior especializado em [LINGUAGEM]. Projete uma solução escalável para [PROBLEMA]. Inclua padrões de projeto, tratamento de erros e comentários explicativos.'
+  },
+  {
+    id: 'creative-engine',
+    title: 'CREATIVE ENGINE',
+    desc: 'Para storytelling, roteiros e geração de conteúdo narrativo.',
+    prompt: 'Assuma o papel de um Romancista Premiado. Escreva uma [TIPO DE TEXTO] sobre [TEMA] em um tom [TOM]. Utilize descrições sensoriais vívidas e evite clichês.'
+  },
+  {
+    id: 'academic-analyzer',
+    title: 'ACADEMIC ANALYZER',
+    desc: 'Focado em resumo, síntese e análise crítica de textos.',
+    prompt: 'Atue como um Pesquisador Acadêmico. Analise o seguinte texto e forneça: 1) Um resumo executivo, 2) Pontos-chave em bullet points, 3) Potenciais vieses ou falhas lógicas.'
+  },
+  {
+    id: 'growth-hacker',
+    title: 'MARKETING STRATEGIST',
+    desc: 'Geração de copy, e-mails de vendas e estratégias de crescimento.',
+    prompt: 'Você é um Especialista em Marketing Digital de classe mundial. Crie uma campanha de [CANAL] para promover [PRODUTO] visando [PÚBLICO ALVO]. Utilize gatilhos mentais de escassez e autoridade.'
+  }
+];
 
 const App: React.FC = () => {
   const [inputPrompt, setInputPrompt] = useState<string>('');
@@ -10,6 +38,7 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState<'pt-BR' | 'en'>('pt-BR');
+  const [showBlueprints, setShowBlueprints] = useState(false);
 
   const handleOptimize = async () => {
     if (!inputPrompt.trim()) return;
@@ -29,6 +58,11 @@ const App: React.FC = () => {
     setInputPrompt(newPrompt);
     // Optional: clear analysis to return to edit mode, or keep it.
     // setAnalysis(null); 
+  };
+
+  const loadBlueprint = (templatePrompt: string) => {
+      setInputPrompt(templatePrompt);
+      setShowBlueprints(false);
   };
 
   return (
@@ -82,6 +116,9 @@ const App: React.FC = () => {
                     {inputPrompt.length} CHARS
                 </div>
                 <div className="flex gap-4">
+                   <CyberButton variant="secondary" onClick={() => setShowBlueprints(true)}>
+                       Access Blueprints
+                   </CyberButton>
                    <CyberButton variant="secondary" onClick={() => setInputPrompt('')}>
                        Clear Buffer
                    </CyberButton>
@@ -169,6 +206,33 @@ const App: React.FC = () => {
              </div>
           </div>
         )}
+
+        {/* Neural Blueprints Modal */}
+        <CyberModal 
+            isOpen={showBlueprints} 
+            onClose={() => setShowBlueprints(false)} 
+            title="NEURAL BLUEPRINTS LIBRARY"
+        >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                {BLUEPRINTS.map((bp) => (
+                    <div 
+                        key={bp.id}
+                        onClick={() => loadBlueprint(bp.prompt)}
+                        className="p-4 border border-[#7b2cbf]/30 bg-black/40 hover:bg-[#7b2cbf]/10 hover:border-[#39ff14] cursor-pointer transition-all group"
+                    >
+                        <h3 className="text-[#39ff14] font-header text-sm mb-2 group-hover:text-white transition-colors">
+                            {bp.title}
+                        </h3>
+                        <p className="text-gray-400 text-xs font-mono-tech mb-3">
+                            {bp.desc}
+                        </p>
+                        <div className="text-[10px] text-[#7b2cbf] font-mono-tech uppercase tracking-wider group-hover:text-[#39ff14]">
+                            &gt;&gt; INJECT PROTOCOL
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </CyberModal>
 
       </main>
 
