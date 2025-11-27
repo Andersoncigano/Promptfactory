@@ -92,6 +92,14 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
             ></div>
           </div>
 
+          {/* Original Input Section */}
+          <h4 className="text-[#39ff14] font-header text-sm mb-2">ORIGINAL INPUT</h4>
+          <div className="bg-black/30 p-3 border border-gray-800 mb-6 max-h-32 overflow-y-auto custom-scrollbar">
+             <p className="text-gray-400 text-xs font-mono-tech whitespace-pre-wrap opacity-80 italic">
+                 {analysis.originalText}
+             </p>
+          </div>
+
           <h4 className="text-[#39ff14] font-header text-sm mb-2">CRITIQUE</h4>
           <p className="text-gray-300 text-sm leading-relaxed mb-6 font-mono-tech">
             {analysis.critique}

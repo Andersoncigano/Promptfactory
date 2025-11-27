@@ -38,7 +38,7 @@ const App: React.FC = () => {
       <div className="fixed bottom-0 right-0 w-1/2 h-64 bg-[#39ff14]/5 blur-[120px] pointer-events-none z-0" />
 
       {/* Navbar */}
-      <header className="relative z-10 border-b border-[#7b2cbf]/30 bg-black/80 backdrop-blur-md sticky top-0">
+      <header className="relative z-50 border-b border-[#7b2cbf]/30 bg-black/80 backdrop-blur-md sticky top-0">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-[#39ff14] clip-path-polygon flex items-center justify-center">
@@ -140,9 +140,9 @@ const App: React.FC = () => {
             {/* Quick Tips / Decor */}
             <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-4">
                 {[
-                    { title: "Define Persona", desc: "Assign expert roles to the model." },
-                    { title: "Chain of Thought", desc: "Guide the model to think step-by-step." },
-                    { title: "Constraint Setting", desc: "Explicitly state negative constraints." }
+                    { title: "Define Persona", desc: "Atribua papéis de especialista ao modelo." },
+                    { title: "Chain of Thought", desc: "Guie o modelo a pensar passo a passo." },
+                    { title: "Constraint Setting", desc: "Defina explicitamente restrições negativas." }
                 ].map((tip, i) => (
                     <div key={i} className="border border-gray-800 p-4 bg-black/40">
                         <h5 className="text-[#39ff14] font-header text-xs mb-1 uppercase">{tip.title}</h5>
