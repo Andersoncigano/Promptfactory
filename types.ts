@@ -1,8 +1,16 @@
+export interface GrammarIssue {
+  type: string; // e.g., 'Spelling', 'Syntax', 'Punctuation'
+  original: string;
+  correction: string;
+  explanation: string;
+}
+
 export interface PromptAnalysis {
   originalText: string;
   critique: string;
   optimizedPrompt: string;
   techniquesUsed: string[];
+  grammarIssues: GrammarIssue[];
   score: number; // 0-100
 }
 

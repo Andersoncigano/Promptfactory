@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger';
@@ -118,4 +118,24 @@ export const CyberStatCard: React.FC<{
             {subValue && <span className="text-xs text-gray-500 font-mono-tech mt-1">{subValue}</span>}
         </div>
     );
+};
+
+export const CyberTooltip: React.FC<{ content: string; children: React.ReactNode }> = ({ content, children }) => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  return (
+    <div 
+      className="relative inline-block"
+      onMouseEnter={() => setIsVisible(true)}
+      onMouseLeave={() => setIsVisible(false)}
+    >
+      {children}
+      {isVisible && (
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-black border border-[#39ff14] text-xs text-[#e0e0e0] font-mono-tech z-50 shadow-[0_0_10px_rgba(57,255,20,0.2)]">
+          {content}
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-[#39ff14]"></div>
+        </div>
+      )}
+    </div>
+  );
 };

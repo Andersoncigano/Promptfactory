@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PromptAnalysis, PerformanceMetrics, ModelConfig } from '../types';
-import { CyberPanel, CyberButton, CyberRange, CyberStatCard } from './CyberComponents';
+import { CyberPanel, CyberButton, CyberRange, CyberStatCard, CyberTooltip } from './CyberComponents';
 import { generatePreview, evaluatePerformance } from '../services/geminiService';
 
 interface AnalysisViewProps {
@@ -8,6 +8,20 @@ interface AnalysisViewProps {
   onApply: (prompt: string) => void;
   language: 'pt-BR' | 'en';
 }
+
+// Updated Logic: Keys are in English (matching API output), Values are in Portuguese (Explanation)
+const TECHNIQUE_DEFINITIONS: Record<string, string> = {
+  "Persona Adoption": "Atribui um papel específico (ex: 'Programador Expert') à IA para alinhar tom e base de conhecimento.",
+  "Chain of Thought": "Força a IA a pensar passo-a-passo antes de responder, reduzindo erros de lógica.",
+  "Few-Shot Prompting": "Fornece exemplos de entrada e saída desejada para guiar o comportamento da IA.",
+  "Delimiters": "Usa símbolos (###, \"\"\") para separar claramente instruções dos dados de entrada.",
+  "Contextual Framing": "Fornece informações de bastidores para que a IA entenda o 'porquê' da solicitação.",
+  "Output Formatting": "Especifica exatamente como o resultado deve parecer (Markdown, JSON, Lista).",
+  "Constraint Setting": "Diz explicitamente o que a IA NÃO deve fazer para evitar erros comuns.",
+  "Clarity & Precision": "Remove linguagem vaga para garantir que a IA interprete o pedido exatamente como pretendido.",
+  "Tone Definition": "Define o humor da resposta (ex: Formal, Espirituoso, Acadêmico).",
+  "Call to Action": "Instrução final clara sobre o que o modelo deve gerar."
+};
 
 export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, language }) => {
   const [activeTab, setActiveTab] = useState<'diff' | 'preview' | 'analytics'>('diff');
@@ -24,6 +38,8 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
       topP: 0.95,
       topK: 40
   });
+
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
 
   const handleSimulate = async () => {
     setSimulating(true);
@@ -43,6 +59,19 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
     }
     setAnalyzing(false);
   }
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(analysis.optimizedPrompt);
+    setCopyStatus("COPIED!");
+    setTimeout(() => setCopyStatus(null), 2000);
+  };
+
+  const getTechniqueDef = (tech: string) => {
+    // Basic fuzzy matching or default to generic message
+    const key = Object.keys(TECHNIQUE_DEFINITIONS).find(k => tech.includes(k) || k.includes(tech));
+    // Default fallback in Portuguese
+    return key ? TECHNIQUE_DEFINITIONS[key] : "Estratégia de otimização avançada aplicada para melhorar a performance do modelo.";
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
@@ -68,12 +97,43 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
             {analysis.critique}
           </p>
 
+          {/* Grammar & Syntax Module */}
+          <div className="mb-6 border-t border-gray-800 pt-4">
+             <h4 className="text-[#39ff14] font-header text-sm mb-3 flex items-center justify-between">
+                SYNTAX INTEGRITY
+                {analysis.grammarIssues.length === 0 && (
+                    <span className="text-[#39ff14] text-xs px-2 py-0.5 border border-[#39ff14]/30 bg-[#39ff14]/10 rounded">CLEAN</span>
+                )}
+             </h4>
+             
+             {analysis.grammarIssues.length === 0 ? (
+                 <p className="text-gray-500 text-xs font-mono-tech italic">No structural or grammatical errors detected in source input.</p>
+             ) : (
+                 <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                     {analysis.grammarIssues.map((issue, idx) => (
+                         <div key={idx} className="bg-red-900/10 border-l-2 border-red-500 p-2">
+                             <div className="flex justify-between items-center mb-1">
+                                 <span className="text-red-400 text-[10px] font-bold uppercase tracking-wider">{issue.type}</span>
+                             </div>
+                             <div className="text-gray-400 text-xs font-mono-tech mb-1 line-through decoration-red-500/50">{issue.original}</div>
+                             <div className="text-[#39ff14] text-xs font-mono-tech font-bold flex items-center gap-2">
+                                 <span>&gt;</span> {issue.correction}
+                             </div>
+                             <div className="text-gray-500 text-[10px] mt-1 italic">{issue.explanation}</div>
+                         </div>
+                     ))}
+                 </div>
+             )}
+          </div>
+
           <h4 className="text-[#39ff14] font-header text-sm mb-2">TECHNIQUES APPLIED</h4>
           <div className="flex flex-wrap gap-2">
             {analysis.techniquesUsed.map((tech, i) => (
-              <span key={i} className="px-2 py-1 bg-[#7b2cbf]/20 border border-[#7b2cbf] text-[10px] text-[#e0e0e0] uppercase tracking-wider">
-                {tech}
-              </span>
+              <CyberTooltip key={i} content={getTechniqueDef(tech)}>
+                <span className="px-2 py-1 bg-[#7b2cbf]/20 border border-[#7b2cbf] text-[10px] text-[#e0e0e0] uppercase tracking-wider cursor-help hover:bg-[#7b2cbf]/40 transition-colors">
+                  {tech}
+                </span>
+              </CyberTooltip>
             ))}
           </div>
         </CyberPanel>
@@ -120,7 +180,10 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
                     value={analysis.optimizedPrompt}
                     className="w-full h-full bg-transparent border-none outline-none resize-none font-mono-tech text-[#e0e0e0] text-sm leading-6 custom-scrollbar"
                    />
-                   <div className="mt-4 flex justify-end">
+                   <div className="mt-4 flex justify-end gap-4">
+                       <CyberButton variant="secondary" onClick={handleCopy}>
+                           {copyStatus || "Copy System Code"}
+                       </CyberButton>
                        <CyberButton onClick={() => onApply(analysis.optimizedPrompt)}>
                            Accept Patch
                        </CyberButton>

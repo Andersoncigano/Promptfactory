@@ -18,14 +18,28 @@ const analysisSchema: Schema = {
     techniquesUsed: {
       type: Type.ARRAY,
       items: { type: Type.STRING },
-      description: "List of specific techniques applied (e.g., 'Chain of Thought', 'Few-Shot', 'Persona Adoption').",
+      description: "List of specific techniques applied (e.g., 'Chain of Thought', 'Few-Shot', 'Persona Adoption'). MUST ALWAYS BE IN ENGLISH STANDARD TERMINOLOGY.",
+    },
+    grammarIssues: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          type: { type: Type.STRING, description: "Category of error (e.g., Spelling, Punctuation, Concordance)" },
+          original: { type: Type.STRING, description: "The exact snippet of text containing the error" },
+          correction: { type: Type.STRING, description: "The corrected version of the snippet" },
+          explanation: { type: Type.STRING, description: "Brief explanation of the rule violated" }
+        },
+        required: ["type", "original", "correction", "explanation"]
+      },
+      description: "List of grammatical, spelling, or punctuation errors found in the ORIGINAL prompt."
     },
     score: {
       type: Type.INTEGER,
       description: "A quality score from 0 to 100 representing the robustness of the optimized prompt.",
     },
   },
-  required: ["critique", "optimizedPrompt", "techniquesUsed", "score"],
+  required: ["critique", "optimizedPrompt", "techniquesUsed", "grammarIssues", "score"],
 };
 
 export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'en'): Promise<PromptAnalysis> => {
@@ -35,9 +49,11 @@ export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'e
 
   const model = "gemini-2.5-flash";
   
+  // CRITICAL CHANGE: 'techniquesUsed' must ALWAYS be in English for the UI mapping to work, 
+  // while 'critique', 'optimizedPrompt' and 'grammarIssues' follow the user's language choice.
   const langInstruction = language === 'pt-BR' 
-      ? "OUTPUT LANGUAGE: PORTUGUESE (BRAZIL). The 'critique', 'optimizedPrompt', and 'techniquesUsed' fields MUST be written in Portuguese. Even if the input is English, translate and optimize into Portuguese."
-      : "OUTPUT LANGUAGE: ENGLISH. The 'critique', 'optimizedPrompt', and 'techniquesUsed' fields MUST be written in English.";
+      ? "OUTPUT LANGUAGE: PORTUGUESE (BRAZIL). The 'critique', 'grammarIssues' and 'optimizedPrompt' fields MUST be written in Portuguese. However, the 'techniquesUsed' list MUST ALWAYS be in ENGLISH (standard industry terminology)."
+      : "OUTPUT LANGUAGE: ENGLISH. All fields including 'critique', 'optimizedPrompt', 'grammarIssues' and 'techniquesUsed' MUST be written in English.";
 
   const systemInstruction = `
     You are Project ORION, an advanced Prompt Engineering AI Specialist. 
@@ -48,10 +64,11 @@ export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'e
     2. Contextual Framing: Assign personas and context.
     3. Structural Formatting: Use markdown, delimiters, and clear steps.
     4. Constraint Handling: Explicitly define what the model should NOT do.
+    5. Syntax Integrity: Rigorously audit the input for grammatical, spelling, and punctuation errors.
     
     ${langInstruction}
     
-    Analyze the user's input and provide a JSON response containing a critique, the optimized prompt, techniques used, and a quality score.
+    Analyze the user's input and provide a JSON response containing a critique, the optimized prompt, techniques used, a list of grammar issues, and a quality score.
   `;
 
   try {
@@ -76,6 +93,7 @@ export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'e
       critique: result.critique,
       optimizedPrompt: result.optimizedPrompt,
       techniquesUsed: result.techniquesUsed,
+      grammarIssues: result.grammarIssues || [],
       score: result.score
     };
 
