@@ -1,0 +1,5 @@
+{
+  "name": "Prompt Factory (Project ORION)",
+  "description": "A cyberpunk-themed prompt engineering environment for designing, refining, and optimizing LLM prompts using Google Gemini.",
+  "requestFramePermissions": []
+}
