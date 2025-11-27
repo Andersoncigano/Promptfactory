@@ -1,7 +1,28 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { PromptAnalysis, ModelConfig, PerformanceMetrics } from "../types";
 
-const apiKey = process.env.API_KEY || ''; // Injected by environment
+// Helper to get env var in various environments (Vite, CRA, Node)
+const getEnvironmentKey = (): string => {
+  // Check standard Vite/Modern browser usage
+  // @ts-ignore - import.meta might not be defined in all TS configs, but works in Vite
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    // @ts-ignore
+    if (import.meta.env.VITE_API_KEY) return import.meta.env.VITE_API_KEY;
+    // @ts-ignore
+    if (import.meta.env.API_KEY) return import.meta.env.API_KEY;
+  }
+  
+  // Check process.env (Webpack/Node/CRA)
+  if (typeof process !== 'undefined' && process.env) {
+    if (process.env.VITE_API_KEY) return process.env.VITE_API_KEY;
+    if (process.env.REACT_APP_API_KEY) return process.env.REACT_APP_API_KEY;
+    if (process.env.API_KEY) return process.env.API_KEY;
+  }
+
+  return '';
+};
+
+const apiKey = getEnvironmentKey();
 const ai = new GoogleGenAI({ apiKey });
 
 const analysisSchema: Schema = {
@@ -44,7 +65,7 @@ const analysisSchema: Schema = {
 
 export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'en'): Promise<PromptAnalysis> => {
   if (!apiKey) {
-    throw new Error("API Key is missing.");
+    throw new Error("API Key is missing. Please check VITE_API_KEY or API_KEY in environment variables.");
   }
 
   const model = "gemini-2.5-flash";
