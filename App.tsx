@@ -29,6 +29,12 @@ const BLUEPRINTS = [
     title: 'MARKETING STRATEGIST',
     desc: 'Geração de copy, e-mails de vendas e estratégias de crescimento.',
     prompt: 'Você é um Especialista em Marketing Digital de classe mundial. Crie uma campanha de [CANAL] para promover [PRODUTO] visando [PÚBLICO ALVO]. Utilize gatilhos mentais de escassez e autoridade.'
+  },
+  {
+    id: 'design-expert',
+    title: 'ART DIRECTOR',
+    desc: 'Foco exclusivo em Design Gráfico, Identidade Visual e Direção de Arte.',
+    prompt: 'Adote a persona de um Diretor de Arte Sênior. Sua missão é analisar [BRIEF/CONCEITO] e fornecer uma direção criativa focada estritamente em Design Gráfico, Tipografia, Cores e Composição. IGNORE princípios de UX/UI ou usabilidade de interface; priorize impacto visual, estética e expressão artística.'
   }
 ];
 
