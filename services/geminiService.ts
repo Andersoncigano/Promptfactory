@@ -1,25 +1,26 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { PromptAnalysis, ModelConfig, PerformanceMetrics } from "../types";
 
-// Helper to get env var in various environments (Vite, CRA, Node)
-const getEnvironmentKey = (): string => {
-  // Check standard Vite/Modern browser usage
-  // @ts-ignore - import.meta might not be defined in all TS configs, but works in Vite
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    // @ts-ignore
-    if (import.meta.env.VITE_API_KEY) return import.meta.env.VITE_API_KEY;
-    // @ts-ignore
-    if (import.meta.env.API_KEY) return import.meta.env.API_KEY;
-  }
+// Lógica de leitura de API Key simplificada e robusta para Vercel/Vite
+const getApiKey = (): string => {
+  // Tenta ler do Vite (Padrão moderno)
+  // @ts-ignore
+  const viteKey = import.meta.env.VITE_API_KEY;
   
-  // Check process.env (Webpack/Node/CRA)
-  if (typeof process !== 'undefined' && process.env) {
-    if (process.env.VITE_API_KEY) return process.env.VITE_API_KEY;
-    if (process.env.REACT_APP_API_KEY) return process.env.REACT_APP_API_KEY;
-    if (process.env.API_KEY) return process.env.API_KEY;
+  // Tenta ler do Process (Fallback para Node/Antigo)
+  // @ts-ignore
+  const processKey = process.env.API_KEY;
+
+  const key = viteKey || processKey || "";
+
+  if (!key) {
+    console.error("CRITICAL ERROR: API Key not found.");
+    console.log("Diagnostic Info:");
+    console.log("- import.meta.env.VITE_API_KEY is:", viteKey ? "SET" : "EMPTY");
+    console.log("- process.env.API_KEY is:", processKey ? "SET" : "EMPTY");
   }
 
-  return '';
+  return key;
 };
 
 const analysisSchema: Schema = {
@@ -61,17 +62,15 @@ const analysisSchema: Schema = {
 };
 
 export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'en'): Promise<PromptAnalysis> => {
-  const apiKey = getEnvironmentKey();
+  const apiKey = getApiKey();
+  
   if (!apiKey) {
     throw new Error("API Key is missing. Please check VITE_API_KEY or API_KEY in environment variables.");
   }
 
-  // Initialize client INSIDE the function to ensure env vars are loaded
   const ai = new GoogleGenAI({ apiKey });
   const model = "gemini-2.5-flash";
   
-  // CRITICAL CHANGE: 'techniquesUsed' must ALWAYS be in English for the UI mapping to work, 
-  // while 'critique', 'optimizedPrompt' and 'grammarIssues' follow the user's language choice.
   const langInstruction = language === 'pt-BR' 
       ? "OUTPUT LANGUAGE: PORTUGUESE (BRAZIL). The 'critique', 'grammarIssues' and 'optimizedPrompt' fields MUST be written in Portuguese. However, the 'techniquesUsed' list MUST ALWAYS be in ENGLISH (standard industry terminology)."
       : "OUTPUT LANGUAGE: ENGLISH. All fields including 'critique', 'optimizedPrompt', 'grammarIssues' and 'techniquesUsed' MUST be written in English.";
@@ -125,7 +124,7 @@ export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'e
 };
 
 export const generatePreview = async (prompt: string): Promise<string> => {
-    const apiKey = getEnvironmentKey();
+    const apiKey = getApiKey();
     if (!apiKey) return "Error: API Key missing.";
 
     const ai = new GoogleGenAI({ apiKey });
@@ -153,12 +152,11 @@ const performanceJudgeSchema: Schema = {
 };
 
 export const evaluatePerformance = async (prompt: string, config: ModelConfig, language: 'pt-BR' | 'en'): Promise<PerformanceMetrics> => {
-    const apiKey = getEnvironmentKey();
+    const apiKey = getApiKey();
     if (!apiKey) throw new Error("API Key is missing.");
 
     const ai = new GoogleGenAI({ apiKey });
 
-    // 1. Generate Response (The Test)
     const generationModel = "gemini-2.5-flash";
     const genResponse = await ai.models.generateContent({
         model: generationModel,
@@ -172,8 +170,6 @@ export const evaluatePerformance = async (prompt: string, config: ModelConfig, l
 
     const generatedText = genResponse.text || "No output.";
 
-    // 2. Analyze Response (The Judge)
-    // We use a separate call to evaluate the output of the first call.
     const judgeModel = "gemini-2.5-flash";
     
     const langInstruction = language === 'pt-BR' 
@@ -201,7 +197,7 @@ export const evaluatePerformance = async (prompt: string, config: ModelConfig, l
             systemInstruction: judgeSystemInstruction,
             responseMimeType: "application/json",
             responseSchema: performanceJudgeSchema,
-            temperature: 0.2 // Low temperature for consistent judging
+            temperature: 0.2
         }
     });
 
