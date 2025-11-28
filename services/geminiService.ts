@@ -22,9 +22,6 @@ const getEnvironmentKey = (): string => {
   return '';
 };
 
-const apiKey = getEnvironmentKey();
-const ai = new GoogleGenAI({ apiKey });
-
 const analysisSchema: Schema = {
   type: Type.OBJECT,
   properties: {
@@ -64,10 +61,13 @@ const analysisSchema: Schema = {
 };
 
 export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'en'): Promise<PromptAnalysis> => {
+  const apiKey = getEnvironmentKey();
   if (!apiKey) {
     throw new Error("API Key is missing. Please check VITE_API_KEY or API_KEY in environment variables.");
   }
 
+  // Initialize client INSIDE the function to ensure env vars are loaded
+  const ai = new GoogleGenAI({ apiKey });
   const model = "gemini-2.5-flash";
   
   // CRITICAL CHANGE: 'techniquesUsed' must ALWAYS be in English for the UI mapping to work, 
@@ -125,7 +125,10 @@ export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'e
 };
 
 export const generatePreview = async (prompt: string): Promise<string> => {
+    const apiKey = getEnvironmentKey();
     if (!apiKey) return "Error: API Key missing.";
+
+    const ai = new GoogleGenAI({ apiKey });
 
     try {
         const response = await ai.models.generateContent({
@@ -150,7 +153,10 @@ const performanceJudgeSchema: Schema = {
 };
 
 export const evaluatePerformance = async (prompt: string, config: ModelConfig, language: 'pt-BR' | 'en'): Promise<PerformanceMetrics> => {
+    const apiKey = getEnvironmentKey();
     if (!apiKey) throw new Error("API Key is missing.");
+
+    const ai = new GoogleGenAI({ apiKey });
 
     // 1. Generate Response (The Test)
     const generationModel = "gemini-2.5-flash";
