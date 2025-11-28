@@ -1,23 +1,37 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { PromptAnalysis, ModelConfig, PerformanceMetrics } from "../types";
 
-// Lógica de leitura de API Key simplificada e robusta para Vercel/Vite
+// Lógica de leitura de API Key simplificada e robusta para Vercel/Vite e Ambientes Locais
 const getApiKey = (): string => {
-  // Tenta ler do Vite (Padrão moderno)
-  // @ts-ignore
-  const viteKey = import.meta.env.VITE_API_KEY;
-  
-  // Tenta ler do Process (Fallback para Node/Antigo)
-  // @ts-ignore
-  const processKey = process.env.API_KEY;
+  let key = "";
 
-  const key = viteKey || processKey || "";
+  // 1. Tenta ler do Vite (Padrão moderno) de forma SEGURA
+  try {
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      // @ts-ignore
+      key = import.meta.env.VITE_API_KEY || "";
+    }
+  } catch (e) {
+    // Ignora erro se import.meta não for suportado
+  }
+
+  // 2. Se não achou, tenta ler do Process (Fallback para Node/Antigo)
+  if (!key) {
+    try {
+      // @ts-ignore
+      if (typeof process !== 'undefined' && process.env) {
+        // @ts-ignore
+        key = process.env.API_KEY || "";
+      }
+    } catch (e) {
+      // Ignora erro se process não for suportado
+    }
+  }
 
   if (!key) {
     console.error("CRITICAL ERROR: API Key not found.");
-    console.log("Diagnostic Info:");
-    console.log("- import.meta.env.VITE_API_KEY is:", viteKey ? "SET" : "EMPTY");
-    console.log("- process.env.API_KEY is:", processKey ? "SET" : "EMPTY");
+    console.log("Diagnostic Info: Checked both import.meta.env and process.env but found no keys.");
   }
 
   return key;
