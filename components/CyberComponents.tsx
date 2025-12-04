@@ -159,3 +159,27 @@ export const CyberModal: React.FC<{ isOpen: boolean; onClose: () => void; title:
     </div>
   );
 };
+
+export const CyberAlert: React.FC<{ title?: string; message: string; onClose?: () => void }> = ({ title = "SYSTEM ERROR", message, onClose }) => (
+    <div className="bg-red-900/10 border border-red-500/50 p-4 relative animate-fadeIn mb-4 group">
+        {/* Animated Scanline for Alert */}
+        <div className="absolute inset-0 bg-red-500/5 pointer-events-none overflow-hidden">
+             <div className="w-full h-full animate-pulse opacity-20 bg-gradient-to-b from-transparent via-red-500/10 to-transparent"></div>
+        </div>
+        
+        <div className="relative flex items-start gap-4 z-10">
+             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-red-500/20 border border-red-500 flex items-center justify-center text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]">
+                <span className="font-header font-bold text-lg">!</span>
+             </div>
+             <div className="flex-grow">
+                 <h4 className="text-red-500 font-header text-xs tracking-widest uppercase mb-1 drop-shadow-[0_0_5px_rgba(239,68,68,0.8)]">{title}</h4>
+                 <p className="text-gray-300 font-mono-tech text-sm leading-relaxed">{message}</p>
+             </div>
+             {onClose && (
+                 <button onClick={onClose} className="text-red-500 hover:text-white transition-colors font-mono-tech text-xs border border-red-500/30 px-2 py-1 hover:bg-red-500 hover:border-transparent">
+                     [DISMISS]
+                 </button>
+             )}
+        </div>
+    </div>
+);

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { optimizePrompt } from './services/geminiService';
 import { PromptAnalysis } from './types';
-import { CyberButton, CyberPanel, SectionHeader, CyberModal } from './components/CyberComponents';
+import { CyberButton, CyberPanel, SectionHeader, CyberModal, CyberAlert } from './components/CyberComponents';
 import { AnalysisView } from './components/AnalysisView';
 
 // Template Data
@@ -38,6 +38,15 @@ const BLUEPRINTS = [
   }
 ];
 
+const parseError = (err: string | null) => {
+    if (!err) return null;
+    const parts = err.split('|');
+    if (parts.length > 1) {
+        return { title: parts[0], message: parts.slice(1).join('|') };
+    }
+    return { title: "SYSTEM ERROR", message: err };
+}
+
 const App: React.FC = () => {
   const [inputPrompt, setInputPrompt] = useState<string>('');
   const [analysis, setAnalysis] = useState<PromptAnalysis | null>(null);
@@ -54,7 +63,7 @@ const App: React.FC = () => {
       const result = await optimizePrompt(inputPrompt, language);
       setAnalysis(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "System Malfunction: Optimization Failed");
+      setError(err instanceof Error ? err.message : "SYSTEM FAILURE|Optimization protocol failed due to unexpected error.");
     } finally {
       setLoading(false);
     }
@@ -70,6 +79,8 @@ const App: React.FC = () => {
       setInputPrompt(templatePrompt);
       setShowBlueprints(false);
   };
+
+  const errorObj = parseError(error);
 
   return (
     <div className="min-h-screen bg-grid-pattern relative flex flex-col">
@@ -174,9 +185,13 @@ const App: React.FC = () => {
                 </div>
             </div>
             
-            {error && (
-                <div className="mt-4 p-4 border border-red-500 bg-red-900/20 text-red-400 font-mono-tech text-sm">
-                    ERROR: {error}
+            {errorObj && (
+                <div className="mt-4 animate-fadeIn">
+                    <CyberAlert 
+                        title={errorObj.title}
+                        message={errorObj.message} 
+                        onClose={() => setError(null)} 
+                    />
                 </div>
             )}
             

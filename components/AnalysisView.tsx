@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PromptAnalysis, PerformanceMetrics, ModelConfig } from '../types';
-import { CyberPanel, CyberButton, CyberRange, CyberStatCard, CyberTooltip } from './CyberComponents';
+import { CyberPanel, CyberButton, CyberRange, CyberStatCard, CyberTooltip, CyberAlert } from './CyberComponents';
 import { generatePreview, evaluatePerformance } from '../services/geminiService';
 
 interface AnalysisViewProps {
@@ -23,6 +23,15 @@ const TECHNIQUE_DEFINITIONS: Record<string, string> = {
   "Call to Action": "Instrução final clara sobre o que o modelo deve gerar."
 };
 
+const parseError = (err: string | null) => {
+    if (!err) return null;
+    const parts = err.split('|');
+    if (parts.length > 1) {
+        return { title: parts[0], message: parts.slice(1).join('|') };
+    }
+    return { title: "OPERATION FAILED", message: err };
+}
+
 export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, language }) => {
   const [activeTab, setActiveTab] = useState<'diff' | 'preview' | 'analytics'>('diff');
   
@@ -39,25 +48,35 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
       topK: 40
   });
 
+  const [error, setError] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
 
   const handleSimulate = async () => {
     setSimulating(true);
-    const res = await generatePreview(analysis.optimizedPrompt);
-    setSimulationResult(res);
-    setSimulating(false);
-    setActiveTab('preview');
+    setError(null);
+    try {
+        const res = await generatePreview(analysis.optimizedPrompt);
+        setSimulationResult(res);
+        setActiveTab('preview');
+    } catch (e) {
+        setError(e instanceof Error ? e.message : "SIMULATION FAILED|Unable to generate preview content.");
+        setActiveTab('preview'); // Switch to preview to show error
+    } finally {
+        setSimulating(false);
+    }
   };
 
   const handleAnalyze = async () => {
     setAnalyzing(true);
+    setError(null);
     try {
         const res = await evaluatePerformance(analysis.optimizedPrompt, modelConfig, language);
         setAnalyticsResult(res);
     } catch (e) {
-        console.error(e);
+        setError(e instanceof Error ? e.message : "ANALYSIS FAILED|Performance evaluation algorithm failed.");
+    } finally {
+        setAnalyzing(false);
     }
-    setAnalyzing(false);
   }
 
   const handleCopy = () => {
@@ -72,6 +91,8 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
     // Default fallback in Portuguese
     return key ? TECHNIQUE_DEFINITIONS[key] : "Estratégia de otimização avançada aplicada para melhorar a performance do modelo.";
   };
+
+  const errorObj = parseError(error);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
@@ -152,7 +173,7 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
         <div className="flex flex-wrap gap-4 mb-2">
             <CyberButton 
                 variant={activeTab === 'diff' ? 'primary' : 'secondary'} 
-                onClick={() => setActiveTab('diff')}
+                onClick={() => { setActiveTab('diff'); setError(null); }}
                 className="text-xs py-2 px-4"
             >
                 Source Code
@@ -167,7 +188,7 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
             </CyberButton>
             <CyberButton 
                 variant={activeTab === 'analytics' ? 'primary' : 'secondary'} 
-                onClick={() => setActiveTab('analytics')}
+                onClick={() => { setActiveTab('analytics'); setError(null); }}
                 className="text-xs py-2 px-4"
             >
                 Performance Lab
@@ -181,6 +202,13 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
             } 
             className="flex-grow min-h-[500px]"
         >
+           {/* Error Display inside the panel */}
+           {errorObj && (
+               <div className="mb-4">
+                   <CyberAlert title={errorObj.title} message={errorObj.message} onClose={() => setError(null)} />
+               </div>
+           )}
+
            {activeTab === 'diff' && (
                <div className="h-full flex flex-col">
                    <textarea 
@@ -201,7 +229,7 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
 
            {activeTab === 'preview' && (
                <div className="h-full overflow-y-auto custom-scrollbar font-mono-tech text-gray-300 text-sm whitespace-pre-wrap">
-                   {simulationResult || "Initiate simulation to view model output..."}
+                   {!error && (simulationResult || "Initiate simulation to view model output...")}
                </div>
            )}
 
@@ -231,48 +259,50 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
                    </div>
 
                    {/* Results Area */}
-                   {analyticsResult ? (
-                       <div className="flex-grow flex flex-col gap-4 overflow-y-auto custom-scrollbar">
-                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <CyberStatCard 
-                                    label="Response Quality" 
-                                    value={analyticsResult.qualityScore} 
-                                    subValue="/ 100"
-                                    variant={analyticsResult.qualityScore > 80 ? 'success' : 'normal'}
-                                />
-                                <CyberStatCard 
-                                    label="Length (Chars)" 
-                                    value={analyticsResult.responseLength} 
-                                />
-                                <CyberStatCard 
-                                    label="Bias Check" 
-                                    value={analyticsResult.biasDetected ? "DETECTED" : "CLEAR"}
-                                    variant={analyticsResult.biasDetected ? 'alert' : 'success'}
-                                />
-                                <CyberStatCard 
-                                    label="Tone" 
-                                    value={analyticsResult.tone} 
-                                />
-                           </div>
+                   {!error && (
+                       analyticsResult ? (
+                           <div className="flex-grow flex flex-col gap-4 overflow-y-auto custom-scrollbar">
+                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <CyberStatCard 
+                                        label="Response Quality" 
+                                        value={analyticsResult.qualityScore} 
+                                        subValue="/ 100"
+                                        variant={analyticsResult.qualityScore > 80 ? 'success' : 'normal'}
+                                    />
+                                    <CyberStatCard 
+                                        label="Length (Chars)" 
+                                        value={analyticsResult.responseLength} 
+                                    />
+                                    <CyberStatCard 
+                                        label="Bias Check" 
+                                        value={analyticsResult.biasDetected ? "DETECTED" : "CLEAR"}
+                                        variant={analyticsResult.biasDetected ? 'alert' : 'success'}
+                                    />
+                                    <CyberStatCard 
+                                        label="Tone" 
+                                        value={analyticsResult.tone} 
+                                    />
+                               </div>
 
-                           <div className="p-4 bg-gray-900/50 border border-gray-700">
-                                <h5 className="text-[#39ff14] text-xs font-header mb-2">BIAS & SAFETY AUDIT</h5>
-                                <p className="text-gray-400 text-xs font-mono-tech leading-relaxed">
-                                    {analyticsResult.biasAnalysis}
-                                </p>
-                           </div>
+                               <div className="p-4 bg-gray-900/50 border border-gray-700">
+                                    <h5 className="text-[#39ff14] text-xs font-header mb-2">BIAS & SAFETY AUDIT</h5>
+                                    <p className="text-gray-400 text-xs font-mono-tech leading-relaxed">
+                                        {analyticsResult.biasAnalysis}
+                                    </p>
+                               </div>
 
-                           <div className="flex-grow border-t border-gray-800 pt-4">
-                                <h5 className="text-[#39ff14] text-xs font-header mb-2">GENERATED OUTPUT SAMPLE</h5>
-                                <p className="text-gray-300 text-sm font-mono-tech whitespace-pre-wrap">
-                                    {analyticsResult.generatedResponse}
-                                </p>
+                               <div className="flex-grow border-t border-gray-800 pt-4">
+                                    <h5 className="text-[#39ff14] text-xs font-header mb-2">GENERATED OUTPUT SAMPLE</h5>
+                                    <p className="text-gray-300 text-sm font-mono-tech whitespace-pre-wrap">
+                                        {analyticsResult.generatedResponse}
+                                    </p>
+                               </div>
                            </div>
-                       </div>
-                   ) : (
-                       <div className="flex-grow flex items-center justify-center text-gray-600 font-mono-tech text-sm">
-                           Configure parameters and run analysis to view metrics.
-                       </div>
+                       ) : (
+                           <div className="flex-grow flex items-center justify-center text-gray-600 font-mono-tech text-sm">
+                               Configure parameters and run analysis to view metrics.
+                           </div>
+                       )
                    )}
                </div>
            )}

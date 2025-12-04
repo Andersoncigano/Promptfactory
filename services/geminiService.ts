@@ -1,41 +1,53 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { PromptAnalysis, ModelConfig, PerformanceMetrics } from "../types";
 
-// Lógica de leitura de API Key simplificada e robusta para Vercel/Vite e Ambientes Locais
-const getApiKey = (): string => {
-  let key = "";
+// Enhanced Error Handling to provide structured feedback to the UI
+const handleGenAIError = (error: unknown): never => {
+    console.error("Gemini Service Error:", error);
+    
+    let title = "SYSTEM ERROR";
+    let message = "An unexpected system malfunction occurred during processing.";
 
-  // 1. Tenta ler do Vite (Padrão moderno) de forma SEGURA
-  try {
-    // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
-      // @ts-ignore
-      key = import.meta.env.VITE_API_KEY || "";
+    if (error instanceof Error) {
+        const msg = error.message.toLowerCase();
+        
+        if (msg.includes("api key") || msg.includes("apikey") || msg.includes("401")) {
+            title = "AUTHENTICATION FAILED";
+            message = "API Key invalid or missing. Please verify your environment configuration.";
+        } else if (msg.includes("403") || msg.includes("permission denied")) {
+            title = "ACCESS DENIED";
+            message = "Permission denied. Your API key may lack the required scope or the billing account might be inactive.";
+        } else if (msg.includes("429") || msg.includes("quota")) {
+            title = "QUOTA EXCEEDED";
+            message = "Rate limit reached. Please standby before retrying operation.";
+        } else if (msg.includes("503") || msg.includes("overloaded")) {
+            title = "SERVER OVERLOAD";
+            message = "Neural network capacity exceeded. Retrying in T-minus moments recommended.";
+        } else if (msg.includes("safety") || msg.includes("blocked")) {
+            title = "SAFETY PROTOCOL";
+            message = "Content blocked by safety filters. Revise input parameters to comply with safety guidelines.";
+        } else if (msg.includes("fetch failed") || msg.includes("network")) {
+            title = "CONNECTION LOST";
+            message = "Uplink to AI Core failed. Verify network integrity and connection status.";
+        } else if (msg.includes("candidate")) {
+             title = "GENERATION ERROR";
+             message = "Model failed to generate valid output for the given input parameters. The prompt may be too complex.";
+        } else {
+             message = error.message;
+        }
     }
-  } catch (e) {
-    // Ignora erro se import.meta não for suportado
-  }
 
-  // 2. Se não achou, tenta ler do Process (Fallback para Node/Antigo)
-  if (!key) {
-    try {
-      // @ts-ignore
-      if (typeof process !== 'undefined' && process.env) {
-        // @ts-ignore
-        key = process.env.API_KEY || "";
-      }
-    } catch (e) {
-      // Ignora erro se process não for suportado
-    }
-  }
-
-  if (!key) {
-    console.error("CRITICAL ERROR: API Key not found.");
-    console.log("Diagnostic Info: Checked both import.meta.env and process.env but found no keys.");
-  }
-
-  return key;
+    // Throw a pipe-delimited string for the UI to parse into Title and Message
+    throw new Error(`${title}|${message}`);
 };
+
+const getClient = () => {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+        throw new Error("CONFIGURATION ERROR|API Key is missing from environment variables.");
+    }
+    return new GoogleGenAI({ apiKey });
+}
 
 const analysisSchema: Schema = {
   type: Type.OBJECT,
@@ -76,81 +88,69 @@ const analysisSchema: Schema = {
 };
 
 export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'en'): Promise<PromptAnalysis> => {
-  const apiKey = getApiKey();
-  
-  if (!apiKey) {
-    throw new Error("API Key is missing. Please check VITE_API_KEY or API_KEY in environment variables.");
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
-  const model = "gemini-2.5-flash";
-  
-  const langInstruction = language === 'pt-BR' 
-      ? "OUTPUT LANGUAGE: PORTUGUESE (BRAZIL). The 'critique', 'grammarIssues' and 'optimizedPrompt' fields MUST be written in Portuguese. However, the 'techniquesUsed' list MUST ALWAYS be in ENGLISH (standard industry terminology)."
-      : "OUTPUT LANGUAGE: ENGLISH. All fields including 'critique', 'optimizedPrompt', 'grammarIssues' and 'techniquesUsed' MUST be written in English.";
-
-  const systemInstruction = `
-    You are Project ORION, an advanced Prompt Engineering AI Specialist. 
-    Your goal is to analyze user prompts and restructure them into "High-Fidelity" specifications.
-    
-    Principles:
-    1. Clarity & Precision: Eliminate ambiguity.
-    2. Contextual Framing: Assign personas and context.
-    3. Structural Formatting: Use markdown, delimiters, and clear steps.
-    4. Constraint Handling: Explicitly define what the model should NOT do.
-    5. Syntax Integrity: Rigorously audit the input for grammatical, spelling, and punctuation errors.
-    
-    ${langInstruction}
-    
-    Analyze the user's input and provide a JSON response containing a critique, the optimized prompt, techniques used, a list of grammar issues, and a quality score.
-  `;
-
   try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: inputPrompt,
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: analysisSchema,
-        temperature: 0.7,
-      },
-    });
+      const ai = getClient();
+      const model = "gemini-2.5-flash";
+      
+      const langInstruction = language === 'pt-BR' 
+          ? "OUTPUT LANGUAGE: PORTUGUESE (BRAZIL). The 'critique', 'grammarIssues' and 'optimizedPrompt' fields MUST be written in Portuguese. However, the 'techniquesUsed' list MUST ALWAYS be in ENGLISH (standard industry terminology)."
+          : "OUTPUT LANGUAGE: ENGLISH. All fields including 'critique', 'optimizedPrompt', 'grammarIssues' and 'techniquesUsed' MUST be written in English.";
 
-    const jsonText = response.text;
-    if (!jsonText) throw new Error("No response from model");
+      const systemInstruction = `
+        You are Project ORION, an advanced Prompt Engineering AI Specialist. 
+        Your goal is to analyze user prompts and restructure them into "High-Fidelity" specifications.
+        
+        Principles:
+        1. Clarity & Precision: Eliminate ambiguity.
+        2. Contextual Framing: Assign personas and context.
+        3. Structural Formatting: Use markdown, delimiters, and clear steps.
+        4. Constraint Handling: Explicitly define what the model should NOT do.
+        5. Syntax Integrity: Rigorously audit the input for grammatical, spelling, and punctuation errors.
+        
+        ${langInstruction}
+        
+        Analyze the user's input and provide a JSON response containing a critique, the optimized prompt, techniques used, a list of grammar issues, and a quality score.
+      `;
 
-    const result = JSON.parse(jsonText);
-    
-    return {
-      originalText: inputPrompt,
-      critique: result.critique,
-      optimizedPrompt: result.optimizedPrompt,
-      techniquesUsed: result.techniquesUsed,
-      grammarIssues: result.grammarIssues || [],
-      score: result.score
-    };
+      const response = await ai.models.generateContent({
+        model,
+        contents: inputPrompt,
+        config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema: analysisSchema,
+            temperature: 0.7,
+        },
+      });
 
+      const jsonText = response.text;
+      if (!jsonText) throw new Error("GENERATION ERROR|Empty response from neural model.");
+
+      const result = JSON.parse(jsonText);
+      
+      return {
+        originalText: inputPrompt,
+        critique: result.critique,
+        optimizedPrompt: result.optimizedPrompt,
+        techniquesUsed: result.techniquesUsed,
+        grammarIssues: result.grammarIssues || [],
+        score: result.score
+      };
   } catch (error) {
-    console.error("Optimization failed:", error);
-    throw error;
+      handleGenAIError(error);
   }
 };
 
 export const generatePreview = async (prompt: string): Promise<string> => {
-    const apiKey = getApiKey();
-    if (!apiKey) return "Error: API Key missing.";
-
-    const ai = new GoogleGenAI({ apiKey });
-
     try {
+        const ai = getClient();
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: prompt,
         });
         return response.text || "No output generated.";
     } catch (error) {
-        return `Simulation Error: ${error instanceof Error ? error.message : "Unknown error"}`;
+        handleGenAIError(error);
     }
 }
 
@@ -166,66 +166,66 @@ const performanceJudgeSchema: Schema = {
 };
 
 export const evaluatePerformance = async (prompt: string, config: ModelConfig, language: 'pt-BR' | 'en'): Promise<PerformanceMetrics> => {
-    const apiKey = getApiKey();
-    if (!apiKey) throw new Error("API Key is missing.");
+    try {
+        const ai = getClient();
+        const generationModel = "gemini-2.5-flash";
+        const genResponse = await ai.models.generateContent({
+            model: generationModel,
+            contents: prompt,
+            config: {
+                temperature: config.temperature,
+                topP: config.topP,
+                topK: config.topK
+            }
+        });
 
-    const ai = new GoogleGenAI({ apiKey });
+        const generatedText = genResponse.text || "No output.";
 
-    const generationModel = "gemini-2.5-flash";
-    const genResponse = await ai.models.generateContent({
-        model: generationModel,
-        contents: prompt,
-        config: {
-            temperature: config.temperature,
-            topP: config.topP,
-            topK: config.topK
-        }
-    });
-
-    const generatedText = genResponse.text || "No output.";
-
-    const judgeModel = "gemini-2.5-flash";
-    
-    const langInstruction = language === 'pt-BR' 
-        ? "OUTPUT LANGUAGE: PORTUGUESE (BRAZIL). The 'biasAnalysis' and 'tone' fields MUST be written in Portuguese."
-        : "OUTPUT LANGUAGE: ENGLISH. The 'biasAnalysis' and 'tone' fields MUST be written in English.";
-
-    const judgeSystemInstruction = `
-        You are an AI Quality Assurance Auditor. 
-        Analyze the provided text which was generated by an LLM in response to a user prompt.
+        const judgeModel = "gemini-2.5-flash";
         
-        Evaluate:
-        1. Quality: Is it coherent? Does it look like a high-quality AI response?
-        2. Bias: Are there any harmful stereotypes or biased viewpoints?
-        3. Tone: Classify the tone.
-        
-        ${langInstruction}
+        const langInstruction = language === 'pt-BR' 
+            ? "OUTPUT LANGUAGE: PORTUGUESE (BRAZIL). The 'biasAnalysis' and 'tone' fields MUST be written in Portuguese."
+            : "OUTPUT LANGUAGE: ENGLISH. The 'biasAnalysis' and 'tone' fields MUST be written in English.";
 
-        Return your analysis in JSON format.
-    `;
+        const judgeSystemInstruction = `
+            You are an AI Quality Assurance Auditor. 
+            Analyze the provided text which was generated by an LLM in response to a user prompt.
+            
+            Evaluate:
+            1. Quality: Is it coherent? Does it look like a high-quality AI response?
+            2. Bias: Are there any harmful stereotypes or biased viewpoints?
+            3. Tone: Classify the tone.
+            
+            ${langInstruction}
 
-    const judgeResponse = await ai.models.generateContent({
-        model: judgeModel,
-        contents: `[GENERATED_TEXT_START]\n${generatedText}\n[GENERATED_TEXT_END]`,
-        config: {
-            systemInstruction: judgeSystemInstruction,
-            responseMimeType: "application/json",
-            responseSchema: performanceJudgeSchema,
-            temperature: 0.2
-        }
-    });
+            Return your analysis in JSON format.
+        `;
 
-    const analysisJson = judgeResponse.text;
-    if (!analysisJson) throw new Error("Judge failed to respond");
+        const judgeResponse = await ai.models.generateContent({
+            model: judgeModel,
+            contents: `[GENERATED_TEXT_START]\n${generatedText}\n[GENERATED_TEXT_END]`,
+            config: {
+                systemInstruction: judgeSystemInstruction,
+                responseMimeType: "application/json",
+                responseSchema: performanceJudgeSchema,
+                temperature: 0.2
+            }
+        });
 
-    const analysis = JSON.parse(analysisJson);
+        const analysisJson = judgeResponse.text;
+        if (!analysisJson) throw new Error("GENERATION ERROR|Judge failed to respond");
 
-    return {
-        generatedResponse: generatedText,
-        responseLength: generatedText.length,
-        qualityScore: analysis.qualityScore,
-        biasDetected: analysis.biasDetected,
-        biasAnalysis: analysis.biasAnalysis,
-        tone: analysis.tone
-    };
+        const analysis = JSON.parse(analysisJson);
+
+        return {
+            generatedResponse: generatedText,
+            responseLength: generatedText.length,
+            qualityScore: analysis.qualityScore,
+            biasDetected: analysis.biasDetected,
+            biasAnalysis: analysis.biasAnalysis,
+            tone: analysis.tone
+        };
+    } catch (error) {
+        handleGenAIError(error);
+    }
 };
