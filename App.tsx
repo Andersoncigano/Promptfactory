@@ -82,6 +82,13 @@ const App: React.FC = () => {
 
   const errorObj = parseError(error);
 
+  const isAuthError = errorObj && (
+      errorObj.title === "AUTHENTICATION FAILED" || 
+      errorObj.title === "INVALID API KEY" || 
+      errorObj.title === "CONFIGURATION ERROR" ||
+      errorObj.title === "ACCESS DENIED"
+  );
+
   return (
     <div className="min-h-screen bg-grid-pattern relative flex flex-col">
       {/* Ambient Glows */}
@@ -192,6 +199,20 @@ const App: React.FC = () => {
                         message={errorObj.message} 
                         onClose={() => setError(null)} 
                     />
+                    {isAuthError && (
+                        <div className="mt-2 flex justify-center p-2 bg-red-900/10 border border-red-500/20">
+                            <a 
+                                href="https://aistudio.google.com/app/apikey" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-[#39ff14] text-sm font-mono-tech underline hover:text-white flex items-center gap-2"
+                            >
+                                <span>[!]</span>
+                                <span>CLICK HERE TO GENERATE/COPY YOUR GEMINI API KEY</span>
+                                <span>&gt;&gt;</span>
+                            </a>
+                        </div>
+                    )}
                 </div>
             )}
             
