@@ -14,6 +14,15 @@ export interface PromptAnalysis {
   score: number; // 0-100
 }
 
+export interface HistoryItem {
+  id: string;
+  timestamp: number;
+  originalPreview: string; // Short snippet of original
+  optimizedPreview: string; // Short snippet of optimized
+  score: number;
+  fullAnalysis: PromptAnalysis;
+}
+
 export enum ViewMode {
   EDITOR = 'EDITOR',
   COMPARISON = 'COMPARISON',
