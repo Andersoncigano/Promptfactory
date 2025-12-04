@@ -11,9 +11,9 @@ const handleGenAIError = (error: unknown): never => {
     if (error instanceof Error) {
         const msg = error.message.toLowerCase();
         
-        if (msg.includes("api key") || msg.includes("apikey") || msg.includes("401")) {
+        if (msg.includes("api key") || msg.includes("apikey") || msg.includes("401") || msg.includes("auth")) {
             title = "AUTHENTICATION FAILED";
-            message = "API Key invalid or missing. Please verify your environment configuration.";
+            message = error.message.includes("|") ? error.message.split("|")[1] : "API Key invalid or missing. Check VITE_API_KEY settings.";
         } else if (msg.includes("403") || msg.includes("permission denied")) {
             title = "ACCESS DENIED";
             message = "Permission denied. Your API key may lack the required scope or the billing account might be inactive.";
@@ -33,7 +33,14 @@ const handleGenAIError = (error: unknown): never => {
              title = "GENERATION ERROR";
              message = "Model failed to generate valid output for the given input parameters. The prompt may be too complex.";
         } else {
-             message = error.message;
+             // Handle custom pipe-delimited errors passed through
+             if (error.message.includes("|")) {
+                 const parts = error.message.split("|");
+                 title = parts[0];
+                 message = parts.slice(1).join("|");
+             } else {
+                 message = error.message;
+             }
         }
     }
 
@@ -42,10 +49,36 @@ const handleGenAIError = (error: unknown): never => {
 };
 
 const getClient = () => {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-        throw new Error("CONFIGURATION ERROR|API Key is missing from environment variables.");
+    let apiKey = undefined;
+    
+    // 1. Try standard process.env (Node/Webpack environments)
+    try {
+        if (typeof process !== 'undefined' && process.env) {
+            apiKey = process.env.API_KEY;
+        }
+    } catch (e) {
+        // Ignore reference errors if process is not defined
     }
+
+    // 2. Try Vite standard import.meta.env (Browser/Vercel environments)
+    if (!apiKey) {
+        try {
+            // @ts-ignore - import.meta meta-property might not be typed in all configs
+            apiKey = import.meta.env?.VITE_API_KEY || import.meta.env?.API_KEY;
+        } catch (e) {
+             // Ignore if import.meta is not available
+        }
+    }
+
+    if (!apiKey) {
+        throw new Error("CONFIGURATION ERROR|API Key is missing. Please add VITE_API_KEY to your environment variables (e.g. Vercel Settings).");
+    }
+
+    // 3. Validate Key Format (Must start with AIza)
+    if (!apiKey.startsWith("AIza")) {
+        throw new Error(`INVALID API KEY|The provided key '${apiKey.substring(0, 8)}...' does not look like a valid Google API Key. It must start with 'AIza'. You may have pasted a Project ID (e.g. 'gen-lang-client') by mistake.`);
+    }
+    
     return new GoogleGenAI({ apiKey });
 }
 
