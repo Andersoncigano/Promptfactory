@@ -91,7 +91,7 @@ const analysisSchema: Schema = {
     },
     optimizedPrompt: {
       type: Type.STRING,
-      description: "The rewritten, high-fidelity prompt using advanced prompt engineering techniques.",
+      description: "The rewritten, high-fidelity prompt. IT MUST USE MARKDOWN HEADERS (###) to separate Role, Context, Task, and Constraints.",
     },
     techniquesUsed: {
       type: Type.ARRAY,
@@ -137,14 +137,29 @@ export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'e
         - Do not be nice. Be professional but highly critical.
         - If the user provides a vague prompt (e.g., "Write a story"), critique the lack of tone, style, length, and purpose.
         - Identify "lazy prompting".
-        - Point out where the LLM might hallucinate due to lack of constraints.
         
-        OPTIMIZATION STANDARDS:
-        1. Clarity & Precision: Eliminate ALL ambiguity.
-        2. Contextual Framing: Force specific Personas (e.g., "World-Class Python Architect" instead of "Coder").
-        3. Structural Formatting: Use Markdown headers, delimiters (###), and step-by-step instructions.
-        4. Negative Constraints: Explicitly define what the model should NOT do.
-        5. Chain of Thought: Instruct the model to "Think step-by-step" before answering.
+        OPTIMIZATION STANDARDS (THE "ORION FRAMEWORK"):
+        The 'optimizedPrompt' MUST NOT be a single paragraph. It MUST follow this strict Markdown structure:
+        
+        ### 1. ROLE & PERSONA
+        (Define the exact specialist role, e.g., "Senior Python Architect" or "Award-Winning Copywriter")
+        
+        ### 2. CONTEXT & OBJECTIVES
+        (The "Why" and the "What". Background info + Ultimate Goal)
+        
+        ### 3. VARIABLES
+        (Identify dynamic parts of the prompt and list them as [PLACEHOLDERS], e.g., [TOPIC], [AUDIENCE])
+        
+        ### 4. STEPS (CHAIN OF THOUGHT)
+        (Explicitly tell the model to think step-by-step. "First, analyze X. Second, draft Y. Third, refine Z.")
+        
+        ### 5. CONSTRAINTS & NEGATIVE PROMPTING
+        (What strictly NOT to do. e.g., "No fluff", "No preambles", "JSON only")
+        
+        ### 6. OUTPUT FORMAT
+        (Define the exact structure of the response)
+
+        Apply "Few-Shot Prompting" (examples) only if the task is complex.
         
         ${langInstruction}
         

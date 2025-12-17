@@ -58,6 +58,10 @@ const App: React.FC = () => {
   // History State
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
+
+  // Constants
+  const MAX_INPUT_CHARS = 100000;
 
   // Load History on Mount
   useEffect(() => {
@@ -94,10 +98,18 @@ const App: React.FC = () => {
     setShowHistory(false);
   };
 
-  const clearHistory = () => {
+  const confirmPurge = () => {
       setHistory([]);
       localStorage.removeItem('orion_history');
+      setShowPurgeConfirm(false);
   }
+
+  const deleteHistoryItem = (e: React.MouseEvent, id: string) => {
+      e.stopPropagation();
+      const newHistory = history.filter(item => item.id !== id);
+      setHistory(newHistory);
+      // LocalStorage update handled by useEffect
+  };
 
   const handleOptimize = async () => {
     if (!inputPrompt.trim()) return;
@@ -164,7 +176,11 @@ const App: React.FC = () => {
         <aside className={`fixed top-16 right-0 bottom-0 w-80 bg-black/95 border-l border-[#7b2cbf]/30 backdrop-blur-xl z-40 transform transition-transform duration-300 ${showHistory ? 'translate-x-0' : 'translate-x-full'}`}>
             <div className="p-4 border-b border-[#7b2cbf]/30 flex justify-between items-center">
                 <h3 className="text-[#39ff14] font-header text-sm">NEURAL MEMORY</h3>
-                <button onClick={clearHistory} className="text-[10px] text-red-500 hover:text-red-400 uppercase font-mono-tech tracking-wider">
+                <button 
+                    onClick={() => setShowPurgeConfirm(true)} 
+                    disabled={history.length === 0}
+                    className="text-[10px] text-red-500 hover:text-white hover:bg-red-500/50 uppercase font-mono-tech tracking-wider border border-red-500/30 px-2 py-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                     [PURGE DATA]
                 </button>
             </div>
@@ -179,9 +195,17 @@ const App: React.FC = () => {
                     <div 
                         key={item.id} 
                         onClick={() => loadFromHistory(item)}
-                        className="p-3 border border-gray-800 bg-gray-900/40 hover:border-[#39ff14] hover:bg-[#39ff14]/5 cursor-pointer transition-all group"
+                        className="p-3 border border-gray-800 bg-gray-900/40 hover:border-[#39ff14] hover:bg-[#39ff14]/5 cursor-pointer transition-all group relative"
                     >
-                        <div className="flex justify-between items-start mb-2">
+                        <button 
+                            onClick={(e) => deleteHistoryItem(e, item.id)}
+                            className="absolute top-2 right-2 text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all z-10 px-2 font-mono-tech font-bold"
+                            title="Delete Entry"
+                        >
+                            X
+                        </button>
+
+                        <div className="flex justify-between items-start mb-2 pr-4">
                             <span className={`text-xs font-bold ${item.score > 80 ? 'text-[#39ff14]' : 'text-yellow-500'}`}>
                                 SCORE: {item.score}
                             </span>
@@ -218,13 +242,14 @@ const App: React.FC = () => {
                 <textarea
                     value={inputPrompt}
                     onChange={(e) => setInputPrompt(e.target.value)}
+                    maxLength={MAX_INPUT_CHARS}
                     placeholder="// Enter your prompt here for optimization..."
                     className="w-full flex-grow bg-transparent border-none outline-none resize-none font-mono-tech text-[#e0e0e0] text-lg leading-relaxed placeholder-gray-600 custom-scrollbar p-2"
                     autoFocus
                 />
                 <div className="mt-6 flex justify-between items-center border-t border-gray-800 pt-4">
                     <div className="text-xs text-gray-500 font-mono-tech">
-                        {inputPrompt.length} CHARS
+                        CAPACITY: <span className={inputPrompt.length > MAX_INPUT_CHARS * 0.9 ? "text-red-500" : "text-[#39ff14]"}>{inputPrompt.length}</span> / {MAX_INPUT_CHARS} CHARS
                     </div>
                     <div className="flex gap-4">
                     <CyberButton variant="secondary" onClick={() => setShowBlueprints(true)}>
@@ -362,6 +387,31 @@ const App: React.FC = () => {
                       </div>
                   </div>
               ))}
+          </div>
+      </CyberModal>
+
+       {/* Purge Confirmation Modal */}
+       <CyberModal
+          isOpen={showPurgeConfirm}
+          onClose={() => setShowPurgeConfirm(false)}
+          title="SYSTEM PURGE WARNING"
+      >
+          <div className="p-2">
+              <div className="bg-red-900/10 border border-red-500/40 p-4 mb-6">
+                  <p className="text-red-500 font-header text-sm mb-2">CRITICAL WARNING:</p>
+                  <p className="text-gray-300 font-mono-tech text-sm">
+                      You are about to wipe all cached data from the Neural Memory Bank.
+                      This action is permanent and cannot be undone.
+                  </p>
+              </div>
+              <div className="flex gap-4 justify-end">
+                  <CyberButton variant="secondary" onClick={() => setShowPurgeConfirm(false)}>
+                      CANCEL OPERATION
+                  </CyberButton>
+                  <CyberButton variant="danger" onClick={confirmPurge}>
+                      EXECUTE PURGE
+                  </CyberButton>
+              </div>
           </div>
       </CyberModal>
 
