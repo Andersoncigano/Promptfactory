@@ -87,7 +87,7 @@ const analysisSchema: Schema = {
   properties: {
     critique: {
       type: Type.STRING,
-      description: "A professional critique of the user's prompt, identifying weaknesses like ambiguity, lack of context, or poor structure.",
+      description: "A harsh, professional critique of the user's prompt, explicitly identifying logical gaps, ambiguity, weak constraints, and lack of context.",
     },
     optimizedPrompt: {
       type: Type.STRING,
@@ -114,7 +114,7 @@ const analysisSchema: Schema = {
     },
     score: {
       type: Type.INTEGER,
-      description: "A quality score from 0 to 100 representing the robustness of the optimized prompt.",
+      description: "A strict quality score from 0 to 100. Do not be generous.",
     },
   },
   required: ["critique", "optimizedPrompt", "techniquesUsed", "grammarIssues", "score"],
@@ -126,23 +126,29 @@ export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'e
       const model = "gemini-2.5-flash";
       
       const langInstruction = language === 'pt-BR' 
-          ? "OUTPUT LANGUAGE: PORTUGUESE (BRAZIL). The 'critique', 'grammarIssues' and 'optimizedPrompt' fields MUST be written in Portuguese. However, the 'techniquesUsed' list MUST ALWAYS be in ENGLISH (standard industry terminology)."
+          ? "OUTPUT LANGUAGE: PORTUGUESE (BRAZIL). The 'critique', 'grammarIssues' and 'optimizedPrompt' fields MUST be written in Portuguese. However, the 'techniquesUsed' list MUST ALWAYS be in ENGLISH."
           : "OUTPUT LANGUAGE: ENGLISH. All fields including 'critique', 'optimizedPrompt', 'grammarIssues' and 'techniquesUsed' MUST be written in English.";
 
       const systemInstruction = `
-        You are Project ORION, an advanced Prompt Engineering AI Specialist. 
-        Your goal is to analyze user prompts and restructure them into "High-Fidelity" specifications.
+        You are Project ORION, a RUTHLESS and ELITE Lead Prompt Architect. 
+        Your goal is to tear down user prompts and rebuild them into "High-Fidelity", production-grade specifications.
         
-        Principles:
-        1. Clarity & Precision: Eliminate ambiguity.
-        2. Contextual Framing: Assign personas and context.
-        3. Structural Formatting: Use markdown, delimiters, and clear steps.
-        4. Constraint Handling: Explicitly define what the model should NOT do.
-        5. Syntax Integrity: Rigorously audit the input for grammatical, spelling, and punctuation errors.
+        CRITICAL ANALYSIS PROTOCOL:
+        - Do not be nice. Be professional but highly critical.
+        - If the user provides a vague prompt (e.g., "Write a story"), critique the lack of tone, style, length, and purpose.
+        - Identify "lazy prompting".
+        - Point out where the LLM might hallucinate due to lack of constraints.
+        
+        OPTIMIZATION STANDARDS:
+        1. Clarity & Precision: Eliminate ALL ambiguity.
+        2. Contextual Framing: Force specific Personas (e.g., "World-Class Python Architect" instead of "Coder").
+        3. Structural Formatting: Use Markdown headers, delimiters (###), and step-by-step instructions.
+        4. Negative Constraints: Explicitly define what the model should NOT do.
+        5. Chain of Thought: Instruct the model to "Think step-by-step" before answering.
         
         ${langInstruction}
         
-        Analyze the user's input and provide a JSON response containing a critique, the optimized prompt, techniques used, a list of grammar issues, and a quality score.
+        Analyze the user's input and provide a JSON response.
       `;
 
       const response = await ai.models.generateContent({
@@ -190,9 +196,9 @@ export const generatePreview = async (prompt: string): Promise<string> => {
 const performanceJudgeSchema: Schema = {
   type: Type.OBJECT,
   properties: {
-    qualityScore: { type: Type.INTEGER, description: "Score 0-100 based on coherence, relevance, and adherence to instructions." },
+    qualityScore: { type: Type.INTEGER, description: "Strict Score 0-100 based on coherence, relevance, and adherence to instructions." },
     biasDetected: { type: Type.BOOLEAN, description: "True if any political, social, or harmful bias is detected." },
-    biasAnalysis: { type: Type.STRING, description: "Explanation of the bias check." },
+    biasAnalysis: { type: Type.STRING, description: "Deep explanation of the bias check." },
     tone: { type: Type.STRING, description: "The perceived tone of the text (e.g. Formal, Creative, Urgent)." }
   },
   required: ["qualityScore", "biasDetected", "biasAnalysis", "tone"]
@@ -221,11 +227,17 @@ export const evaluatePerformance = async (prompt: string, config: ModelConfig, l
             : "OUTPUT LANGUAGE: ENGLISH. The 'biasAnalysis' and 'tone' fields MUST be written in English.";
 
         const judgeSystemInstruction = `
-            You are an AI Quality Assurance Auditor. 
+            You are a Senior AI QA Auditor with IMPOSSIBLE STANDARDS. 
             Analyze the provided text which was generated by an LLM in response to a user prompt.
             
+            SCORING RUBRIC (BE STRICT):
+            - < 60: Generic, vague, hallucinated, or ignores instructions.
+            - 60-80: Acceptable, but lacks "spark", depth, or specific formatting.
+            - 80-90: High quality, meets all requirements efficiently.
+            - > 90: Exceptional, indistinguishable from top-tier human expert output. Rare.
+            
             Evaluate:
-            1. Quality: Is it coherent? Does it look like a high-quality AI response?
+            1. Quality: Is it coherent? Is it dense with value or just fluff?
             2. Bias: Are there any harmful stereotypes or biased viewpoints?
             3. Tone: Classify the tone.
             
