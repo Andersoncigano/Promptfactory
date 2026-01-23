@@ -108,7 +108,6 @@ const App: React.FC = () => {
       e.stopPropagation();
       const newHistory = history.filter(item => item.id !== id);
       setHistory(newHistory);
-      // LocalStorage update handled by useEffect
   };
 
   const handleOptimize = async () => {
@@ -120,7 +119,7 @@ const App: React.FC = () => {
       setAnalysis(result);
       addToHistory(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "SYSTEM FAILURE|Optimization protocol failed due to unexpected error.");
+      setError(err instanceof Error ? err.message : "SYSTEM FAILURE|Optimization protocol failed.");
     } finally {
       setLoading(false);
     }
@@ -162,35 +161,29 @@ const App: React.FC = () => {
              >
                 MEMORY BANK [{history.length}]
              </button>
-             <div className="text-xs font-mono-tech text-[#39ff14] border border-[#39ff14]/30 px-2 py-1 rounded">
-                SYS.STATUS: ONLINE
+             <div className="text-xs font-mono-tech text-[#39ff14] border border-[#39ff14]/30 px-2 py-1 rounded shadow-[0_0_10px_rgba(57,255,20,0.3)]">
+                SYS.STATUS: GEMINI 3 PRO [ACTIVE]
              </div>
           </div>
         </div>
       </header>
 
-      {/* Main Layout with Sidebar */}
+      {/* Main Layout */}
       <div className="flex-grow flex relative max-w-7xl mx-auto w-full">
         
-        {/* History Sidebar */}
+        {/* Sidebar */}
         <aside className={`fixed top-16 right-0 bottom-0 w-80 bg-black/95 border-l border-[#7b2cbf]/30 backdrop-blur-xl z-40 transform transition-transform duration-300 ${showHistory ? 'translate-x-0' : 'translate-x-full'}`}>
             <div className="p-4 border-b border-[#7b2cbf]/30 flex justify-between items-center">
                 <h3 className="text-[#39ff14] font-header text-sm">NEURAL MEMORY</h3>
                 <button 
                     onClick={() => setShowPurgeConfirm(true)} 
                     disabled={history.length === 0}
-                    className="text-[10px] text-red-500 hover:text-white hover:bg-red-500/50 uppercase font-mono-tech tracking-wider border border-red-500/30 px-2 py-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="text-[10px] text-red-500 hover:text-white hover:bg-red-500/50 uppercase font-mono-tech tracking-wider border border-red-500/30 px-2 py-1 transition-all"
                 >
-                    [PURGE DATA]
+                    [PURGE]
                 </button>
             </div>
             <div className="overflow-y-auto h-[calc(100%-60px)] p-4 space-y-3 custom-scrollbar">
-                {history.length === 0 && (
-                    <div className="text-gray-600 text-xs font-mono-tech text-center mt-10">
-                        // MEMORY BANKS EMPTY<br/>
-                        // INITIATE OPTIMIZATION TO SAVE
-                    </div>
-                )}
                 {history.map(item => (
                     <div 
                         key={item.id} 
@@ -199,51 +192,37 @@ const App: React.FC = () => {
                     >
                         <button 
                             onClick={(e) => deleteHistoryItem(e, item.id)}
-                            className="absolute top-2 right-2 text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all z-10 px-2 font-mono-tech font-bold"
-                            title="Delete Entry"
+                            className="absolute top-2 right-2 text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 px-2 font-mono-tech font-bold"
                         >
                             X
                         </button>
-
-                        <div className="flex justify-between items-start mb-2 pr-4">
+                        <div className="flex justify-between items-start mb-2">
                             <span className={`text-xs font-bold ${item.score > 80 ? 'text-[#39ff14]' : 'text-yellow-500'}`}>
                                 SCORE: {item.score}
                             </span>
-                            <span className="text-[10px] text-gray-500 font-mono-tech">
-                                {new Date(item.timestamp).toLocaleTimeString()}
-                            </span>
                         </div>
-                        <p className="text-gray-400 text-[10px] font-mono-tech truncate mb-1">
+                        <p className="text-gray-400 text-[10px] font-mono-tech truncate">
                             IN: {item.originalPreview}
-                        </p>
-                        <p className="text-[#e0e0e0] text-[10px] font-mono-tech truncate">
-                            OUT: {item.optimizedPreview}
                         </p>
                     </div>
                 ))}
             </div>
         </aside>
 
-        {/* Main Content Area */}
-        <main className="flex-grow p-6 w-full transition-all duration-300 relative z-10">
-            {/* Click backdrop to close history on mobile */}
-            {showHistory && (
-                <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setShowHistory(false)}></div>
-            )}
-
+        <main className="flex-grow p-6 w-full relative z-10">
             {!analysis ? (
             <div className="max-w-4xl mx-auto mt-10 animate-fadeIn">
                 <SectionHeader 
-                title="Core Input Terminal" 
-                subtitle="Enter raw prompt data for algorithmic refinement and optimization." 
+                title="Gemini 3 Neural Terminal" 
+                subtitle="High-fidelity prompt reconstruction engine powered by Project ORION." 
                 />
                 
-                <CyberPanel className="min-h-[500px] flex flex-col" title="INPUT_STREAM_01">
+                <CyberPanel className="min-h-[500px] flex flex-col" title="CORE_INPUT_GEMINI_3">
                 <textarea
                     value={inputPrompt}
                     onChange={(e) => setInputPrompt(e.target.value)}
                     maxLength={MAX_INPUT_CHARS}
-                    placeholder="// Enter your prompt here for optimization..."
+                    placeholder="// Enter your prompt for deep reasoning optimization..."
                     className="w-full flex-grow bg-transparent border-none outline-none resize-none font-mono-tech text-[#e0e0e0] text-lg leading-relaxed placeholder-gray-600 custom-scrollbar p-2"
                     autoFocus
                 />
@@ -253,179 +232,56 @@ const App: React.FC = () => {
                     </div>
                     <div className="flex gap-4">
                     <CyberButton variant="secondary" onClick={() => setShowBlueprints(true)}>
-                        Access Blueprints
-                    </CyberButton>
-                    <CyberButton variant="secondary" onClick={() => setInputPrompt('')}>
-                        Clear Buffer
+                        Blueprints
                     </CyberButton>
                     <CyberButton onClick={handleOptimize} isLoading={loading}>
-                        Initiate Optimization
+                        Refine with Gemini 3 Pro
                     </CyberButton>
                     </div>
                 </div>
                 </CyberPanel>
 
-                {/* Language Selector Component */}
                 <div className="mt-4 flex justify-end">
                     <div className="flex items-center gap-6 px-4 py-2 border border-[#7b2cbf]/20 bg-black/40 backdrop-blur-sm">
                         <label className="flex items-center gap-2 cursor-pointer group">
-                            <div className="relative w-4 h-4 flex items-center justify-center">
-                                <input 
-                                    type="radio" 
-                                    name="lang_select" 
-                                    value="pt-BR"
-                                    checked={language === 'pt-BR'}
-                                    onChange={() => setLanguage('pt-BR')}
-                                    className="peer appearance-none w-full h-full border border-[#7b2cbf] rounded-full checked:border-[#39ff14] checked:shadow-[0_0_8px_#39ff14] transition-all cursor-pointer"
-                                />
-                                <div className="absolute w-2 h-2 bg-[#39ff14] rounded-full opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none"></div>
-                            </div>
-                            <span className={`text-xs font-mono-tech tracking-wide transition-colors ${language === 'pt-BR' ? 'text-[#e0e0e0]' : 'text-gray-500 group-hover:text-gray-400'}`}>
-                                Português (Brasil)
-                            </span>
+                            <input type="radio" checked={language === 'pt-BR'} onChange={() => setLanguage('pt-BR')} className="hidden" />
+                            <span className={`text-xs font-mono-tech ${language === 'pt-BR' ? 'text-[#39ff14]' : 'text-gray-500'}`}>PT-BR</span>
                         </label>
-
                         <label className="flex items-center gap-2 cursor-pointer group">
-                            <div className="relative w-4 h-4 flex items-center justify-center">
-                                <input 
-                                    type="radio" 
-                                    name="lang_select" 
-                                    value="en"
-                                    checked={language === 'en'}
-                                    onChange={() => setLanguage('en')}
-                                    className="peer appearance-none w-full h-full border border-[#7b2cbf] rounded-full checked:border-[#39ff14] checked:shadow-[0_0_8px_#39ff14] transition-all cursor-pointer"
-                                />
-                                <div className="absolute w-2 h-2 bg-[#39ff14] rounded-full opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none"></div>
-                            </div>
-                            <span className={`text-xs font-mono-tech tracking-wide transition-colors ${language === 'en' ? 'text-[#e0e0e0]' : 'text-gray-500 group-hover:text-gray-400'}`}>
-                                English
-                            </span>
+                            <input type="radio" checked={language === 'en'} onChange={() => setLanguage('en')} className="hidden" />
+                            <span className={`text-xs font-mono-tech ${language === 'en' ? 'text-[#39ff14]' : 'text-gray-500'}`}>EN-US</span>
                         </label>
                     </div>
                 </div>
                 
-                {errorObj && (
-                    <div className="mt-4 animate-fadeIn">
-                        <CyberAlert 
-                            title={errorObj.title}
-                            message={errorObj.message} 
-                            onClose={() => setError(null)} 
-                        />
-                        {isAuthError && (
-                            <div className="mt-2 flex justify-center p-2 bg-red-900/10 border border-red-500/20">
-                                <a 
-                                    href="https://aistudio.google.com/app/apikey" 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-[#39ff14] text-sm font-mono-tech underline hover:text-white flex items-center gap-2"
-                                >
-                                    <span>[!]</span>
-                                    <span>CLICK HERE TO GENERATE/COPY YOUR GEMINI API KEY</span>
-                                    <span>&gt;&gt;</span>
-                                </a>
-                            </div>
-                        )}
-                    </div>
-                )}
-                
-                {/* Quick Tips / Decor */}
-                <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {[
-                        { title: "Define Persona", desc: "Atribua papéis de especialista ao modelo." },
-                        { title: "Chain of Thought", desc: "Guie o modelo a pensar passo a passo." },
-                        { title: "Constraint Setting", desc: "Defina explicitamente restrições negativas." }
-                    ].map((tip, i) => (
-                        <div key={i} className="border border-gray-800 p-4 bg-black/40">
-                            <h5 className="text-[#39ff14] font-header text-xs mb-1 uppercase">{tip.title}</h5>
-                            <p className="text-gray-500 text-xs font-mono-tech">{tip.desc}</p>
-                        </div>
-                    ))}
-                </div>
-
+                {errorObj && <CyberAlert title={errorObj.title} message={errorObj.message} onClose={() => setError(null)} />}
             </div>
             ) : (
             <div className="h-full flex flex-col animate-fadeIn">
                 <div className="flex justify-between items-end mb-6">
-                    <SectionHeader 
-                    title="Analysis Protocol Complete" 
-                    subtitle="Review optimized logic and simulation results below." 
-                    />
-                    <CyberButton variant="secondary" onClick={() => setAnalysis(null)} className="mb-6">
-                        Return to Terminal
-                    </CyberButton>
+                    <SectionHeader title="Optimization Logic Decoupled" subtitle="Gemini 3 reasoning complete." />
+                    <CyberButton variant="secondary" onClick={() => setAnalysis(null)}>Return</CyberButton>
                 </div>
-                
-                <div className="flex-grow">
-                    <AnalysisView analysis={analysis} onApply={handleApply} language={language} />
-                </div>
+                <AnalysisView analysis={analysis} onApply={handleApply} language={language} />
             </div>
             )}
         </main>
       </div>
 
-      {/* Neural Blueprints Modal */}
-      <CyberModal 
-          isOpen={showBlueprints} 
-          onClose={() => setShowBlueprints(false)} 
-          title="NEURAL BLUEPRINTS LIBRARY"
-      >
+      <CyberModal isOpen={showBlueprints} onClose={() => setShowBlueprints(false)} title="NEURAL BLUEPRINTS">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
               {BLUEPRINTS.map((bp) => (
-                  <div 
-                      key={bp.id}
-                      onClick={() => loadBlueprint(bp.prompt)}
-                      className="p-4 border border-[#7b2cbf]/30 bg-black/40 hover:bg-[#7b2cbf]/10 hover:border-[#39ff14] cursor-pointer transition-all group"
-                  >
-                      <h3 className="text-[#39ff14] font-header text-sm mb-2 group-hover:text-white transition-colors">
-                          {bp.title}
-                      </h3>
-                      <p className="text-gray-400 text-xs font-mono-tech mb-3">
-                          {bp.desc}
-                      </p>
-                      <div className="text-[10px] text-[#7b2cbf] font-mono-tech uppercase tracking-wider group-hover:text-[#39ff14]">
-                          &gt;&gt; INJECT PROTOCOL
-                      </div>
+                  <div key={bp.id} onClick={() => loadBlueprint(bp.prompt)} className="p-4 border border-[#7b2cbf]/30 bg-black/40 hover:border-[#39ff14] cursor-pointer group">
+                      <h3 className="text-[#39ff14] font-header text-sm mb-2">{bp.title}</h3>
+                      <p className="text-gray-400 text-xs font-mono-tech">{bp.desc}</p>
                   </div>
               ))}
           </div>
       </CyberModal>
 
-       {/* Purge Confirmation Modal */}
-       <CyberModal
-          isOpen={showPurgeConfirm}
-          onClose={() => setShowPurgeConfirm(false)}
-          title="SYSTEM PURGE WARNING"
-      >
-          <div className="p-2">
-              <div className="bg-red-900/10 border border-red-500/40 p-4 mb-6">
-                  <p className="text-red-500 font-header text-sm mb-2">CRITICAL WARNING:</p>
-                  <p className="text-gray-300 font-mono-tech text-sm">
-                      You are about to wipe all cached data from the Neural Memory Bank.
-                      This action is permanent and cannot be undone.
-                  </p>
-              </div>
-              <div className="flex gap-4 justify-end">
-                  <CyberButton variant="secondary" onClick={() => setShowPurgeConfirm(false)}>
-                      CANCEL OPERATION
-                  </CyberButton>
-                  <CyberButton variant="danger" onClick={confirmPurge}>
-                      EXECUTE PURGE
-                  </CyberButton>
-              </div>
-          </div>
-      </CyberModal>
-
-      {/* Footer */}
-      <footer className="border-t border-[#7b2cbf]/30 bg-black py-4 mt-auto relative z-10">
-        <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-            <p className="text-gray-600 text-xs font-mono-tech">
-                &copy; 2025 PROMPT FACTORY // SECURE CONNECTION
-            </p>
-            <div className="flex gap-2">
-                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse delay-75"></div>
-                <div className="w-2 h-2 bg-[#39ff14] rounded-full animate-pulse delay-150"></div>
-            </div>
+      <footer className="border-t border-[#7b2cbf]/30 bg-black py-4 mt-auto">
+        <div className="max-w-7xl mx-auto px-6 flex justify-between items-center text-gray-600 text-xs font-mono-tech">
+            <p>&copy; 2025 PROMPT FACTORY // GEMINI 3 ENGINE</p>
         </div>
       </footer>
     </div>
