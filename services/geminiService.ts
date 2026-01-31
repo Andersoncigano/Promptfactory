@@ -1,25 +1,24 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { PromptAnalysis, ModelConfig, PerformanceMetrics } from "../types";
 
-// Enhanced Error Handling to provide structured feedback to the UI
 const handleGenAIError = (error: unknown): never => {
     console.error("Gemini Service Error:", error);
     
     let title = "SYSTEM ERROR";
-    let message = "An unexpected system malfunction occurred during processing.";
+    let message = "Um mau funcionamento inesperado ocorreu no sistema.";
 
     if (error instanceof Error) {
         const msg = error.message.toLowerCase();
         
         if (msg.includes("api key") || msg.includes("apikey") || msg.includes("401") || msg.includes("auth")) {
             title = "AUTHENTICATION FAILED";
-            message = error.message.includes("|") ? error.message.split("|")[1] : "API Key invalid or missing. Check your environment settings.";
+            message = "Chave de API inválida ou ausente. Clique no botão de autorização para conectar sua conta.";
         } else if (msg.includes("429") || msg.includes("quota")) {
             title = "QUOTA EXCEEDED";
-            message = "Rate limit reached. Please standby before retrying operation.";
-        } else if (msg.includes("safety") || msg.includes("blocked")) {
-            title = "SAFETY PROTOCOL";
-            message = "Content blocked by safety filters. Revise input parameters to comply with safety guidelines.";
+            message = "Limite de requisições atingido. Aguarde alguns instantes.";
+        } else if (msg.includes("404") || msg.includes("not found")) {
+            title = "ENTITY NOT FOUND";
+            message = "O modelo Gemini 3 Pro não foi encontrado ou seu projeto não tem acesso a ele. Verifique se o faturamento está ativo.";
         } else {
              if (error.message.includes("|")) {
                  const parts = error.message.split("|");
@@ -35,9 +34,10 @@ const handleGenAIError = (error: unknown): never => {
 };
 
 const getClient = () => {
+    // Re-initialize to capture injected key
     const apiKey = process.env.API_KEY;
     if (!apiKey) {
-        throw new Error("CONFIGURATION ERROR|API Key is missing from process.env.API_KEY.");
+        throw new Error("AUTHENTICATION FAILED|Nenhuma chave de API detectada no ambiente atual.");
     }
     return new GoogleGenAI({ apiKey });
 }
@@ -45,19 +45,9 @@ const getClient = () => {
 const analysisSchema: Schema = {
   type: Type.OBJECT,
   properties: {
-    critique: {
-      type: Type.STRING,
-      description: "A harsh, professional critique of the user's prompt identifying logical gaps and ambiguity.",
-    },
-    optimizedPrompt: {
-      type: Type.STRING,
-      description: "The rewritten, high-fidelity prompt using MARKDOWN HEADERS (###).",
-    },
-    techniquesUsed: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description: "List of specific techniques applied in ENGLISH.",
-    },
+    critique: { type: Type.STRING },
+    optimizedPrompt: { type: Type.STRING },
+    techniquesUsed: { type: Type.ARRAY, items: { type: Type.STRING } },
     grammarIssues: {
       type: Type.ARRAY,
       items: {
@@ -71,10 +61,7 @@ const analysisSchema: Schema = {
         required: ["type", "original", "correction", "explanation"]
       }
     },
-    score: {
-      type: Type.INTEGER,
-      description: "Quality score from 0 to 100.",
-    },
+    score: { type: Type.INTEGER },
   },
   required: ["critique", "optimizedPrompt", "techniquesUsed", "grammarIssues", "score"],
 };
@@ -85,22 +72,18 @@ export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'e
       const model = 'gemini-3-pro-preview';
       
       const langInstruction = language === 'pt-BR' 
-          ? "OUTPUT LANGUAGE: PORTUGUESE (BRAZIL). The 'critique', 'grammarIssues' and 'optimizedPrompt' fields MUST be in Portuguese. 'techniquesUsed' MUST be in ENGLISH."
-          : "OUTPUT LANGUAGE: ENGLISH. All fields MUST be in English.";
+          ? "OUTPUT LANGUAGE: PORTUGUESE (BRAZIL). Os campos 'critique', 'grammarIssues' e 'optimizedPrompt' DEVEM estar em Português."
+          : "OUTPUT LANGUAGE: ENGLISH.";
 
       const systemInstruction = `
-        You are Project ORION, an ELITE Lead Prompt Architect. 
-        Analyze the user's prompt and reconstruct it into a "High-Fidelity" production-grade specification.
-        
-        OPTIMIZATION STANDARDS:
-        The 'optimizedPrompt' MUST follow this Markdown structure:
+        Você é o Projeto ORION, um Arquiteto de Prompts Sênior. 
+        Sua tarefa é reconstruir o input do usuário em uma especificação de alta fidelidade seguindo rigorosamente esta estrutura:
         ### 1. ROLE & PERSONA
         ### 2. CONTEXT & OBJECTIVES
         ### 3. VARIABLES
         ### 4. STEPS (CHAIN OF THOUGHT)
         ### 5. CONSTRAINTS & NEGATIVE PROMPTING
         ### 6. OUTPUT FORMAT
-
         ${langInstruction}
       `;
 
@@ -112,14 +95,11 @@ export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'e
             responseMimeType: "application/json",
             responseSchema: analysisSchema,
             temperature: 0.7,
-            thinkingConfig: { thinkingBudget: 16384 } // Use reasoning for optimization
+            thinkingConfig: { thinkingBudget: 16384 }
         },
       });
 
-      const jsonText = response.text;
-      if (!jsonText) throw new Error("GENERATION ERROR|Empty response from Gemini 3 Core.");
-
-      const result = JSON.parse(jsonText);
+      const result = JSON.parse(response.text || "{}");
       
       return {
         originalText: inputPrompt,
@@ -138,70 +118,37 @@ export const generatePreview = async (prompt: string): Promise<string> => {
     try {
         const ai = getClient();
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview', // Flash for speed in quick simulation
+            model: 'gemini-3-flash-preview',
             contents: prompt,
         });
-        return response.text || "No output generated.";
+        return response.text || "Nenhuma saída gerada.";
     } catch (error) {
         handleGenAIError(error);
     }
 }
 
-const performanceJudgeSchema: Schema = {
-  type: Type.OBJECT,
-  properties: {
-    qualityScore: { type: Type.INTEGER },
-    biasDetected: { type: Type.BOOLEAN },
-    biasAnalysis: { type: Type.STRING },
-    tone: { type: Type.STRING }
-  },
-  required: ["qualityScore", "biasDetected", "biasAnalysis", "tone"]
-};
-
 export const evaluatePerformance = async (prompt: string, config: ModelConfig, language: 'pt-BR' | 'en'): Promise<PerformanceMetrics> => {
     try {
         const ai = getClient();
-        // Generate sample response using optimized prompt
         const genResponse = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: prompt,
-            config: {
-                temperature: config.temperature,
-                topP: config.topP,
-                topK: config.topK
-            }
+            config: { temperature: config.temperature, topP: config.topP, topK: config.topK }
         });
-
-        const generatedText = genResponse.text || "No output.";
-
-        // Judge the response using the Pro model
-        const langInstruction = language === 'pt-BR' 
-            ? "OUTPUT LANGUAGE: PORTUGUESE (BRAZIL)."
-            : "OUTPUT LANGUAGE: ENGLISH.";
-
-        const judgeSystemInstruction = `
-            You are a Senior AI QA Auditor. Analyze the text for quality, bias, and tone.
-            ${langInstruction}
-            Return JSON.
-        `;
+        const generatedText = genResponse.text || "Sem resposta.";
 
         const judgeResponse = await ai.models.generateContent({
             model: 'gemini-3-pro-preview',
-            contents: `[GENERATED_TEXT_START]\n${generatedText}\n[GENERATED_TEXT_END]`,
+            contents: `Analise a qualidade técnica desta resposta gerada por IA: ${generatedText}`,
             config: {
-                systemInstruction: judgeSystemInstruction,
+                systemInstruction: "Você é um Auditor Sênior de QA de IA. Retorne JSON: {qualityScore: int, biasDetected: bool, biasAnalysis: string, tone: string}",
                 responseMimeType: "application/json",
-                responseSchema: performanceJudgeSchema,
                 temperature: 0.2,
-                thinkingConfig: { thinkingBudget: 8192 } // Reasoning for audit
+                thinkingConfig: { thinkingBudget: 8192 }
             }
         });
 
-        const analysisJson = judgeResponse.text;
-        if (!analysisJson) throw new Error("GENERATION ERROR|Auditor failed to respond");
-
-        const analysis = JSON.parse(analysisJson);
-
+        const analysis = JSON.parse(judgeResponse.text || "{}");
         return {
             generatedResponse: generatedText,
             responseLength: generatedText.length,
