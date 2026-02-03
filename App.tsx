@@ -5,9 +5,6 @@ import { PromptAnalysis, HistoryItem } from './types.ts';
 import { CyberButton, CyberPanel, SectionHeader, CyberModal, CyberAlert } from './components/CyberComponents.tsx';
 import { AnalysisView } from './components/AnalysisView.tsx';
 
-// Removed conflicting manual declaration of aistudio on Window interface
-// to resolve duplicate identifier and modifier mismatch errors.
-
 const BLUEPRINTS = [
   {
     id: 'sys-architect',
@@ -46,6 +43,7 @@ const parseError = (err: string | null) => {
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false);
   const [inputPrompt, setInputPrompt] = useState<string>('');
   const [analysis, setAnalysis] = useState<PromptAnalysis | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -74,18 +72,36 @@ const App: React.FC = () => {
 
   const checkAuth = async () => {
     try {
-      // Use type assertion to avoid conflict with predefined aistudio type in the environment
-      const hasKey = await (window as any).aistudio.hasSelectedApiKey();
-      setIsAuthenticated(hasKey);
+      if ((window as any).aistudio) {
+        const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+        setIsAuthenticated(hasKey);
+      } else {
+        console.warn("aistudio not found in window");
+        setIsAuthenticated(false);
+      }
     } catch (e) {
+      console.error("Auth check failed:", e);
       setIsAuthenticated(false);
     }
   };
 
   const handleAuthenticate = async () => {
-    // Mitigate race condition by assuming success after opening select key dialog
-    await (window as any).aistudio.openSelectKey();
-    setIsAuthenticated(true);
+    setIsAuthLoading(true);
+    try {
+      if ((window as any).aistudio) {
+        console.log("Opening API key selector...");
+        await (window as any).aistudio.openSelectKey();
+        // Conforme as regras, assumimos sucesso imediatamente após abrir o diálogo
+        setIsAuthenticated(true);
+      } else {
+        throw new Error("AISTUDIO_NOT_READY|System core modules are still initializing.");
+      }
+    } catch (e: any) {
+      console.error("Authentication failed:", e);
+      setError(e.message || "AUTH_MALFUNCTION|Failed to open credential selector.");
+    } finally {
+      setIsAuthLoading(false);
+    }
   };
 
   const addToHistory = (result: PromptAnalysis) => {
@@ -114,7 +130,6 @@ const App: React.FC = () => {
       const errMsg = err instanceof Error ? err.message : "SYSTEM FAILURE|Optimization protocol failed.";
       setError(errMsg);
       
-      // If requested entity not found, reset auth state as per guidelines
       if (errMsg.includes("Requested entity was not found") || errMsg.includes("AUTH FAILURE")) {
         setIsAuthenticated(false);
       }
@@ -125,7 +140,6 @@ const App: React.FC = () => {
 
   const errorObj = parseError(error);
 
-  // Initial Authentication Screen
   if (isAuthenticated === false) {
     return (
       <div className="min-h-screen bg-[#050505] text-[#e0e0e0] flex items-center justify-center p-6">
@@ -140,8 +154,15 @@ const App: React.FC = () => {
               <p className="text-gray-400 font-mono-tech text-sm mb-8 leading-relaxed">
                 ORION CORE v3.2 requires a valid Project API Key with active billing to access Gemini 3 series models.
               </p>
+              
+              {errorObj && (
+                <div className="mb-6 text-left">
+                  <CyberAlert title={errorObj.title} message={errorObj.message} onClose={() => setError(null)} />
+                </div>
+              )}
+
               <div className="space-y-4">
-                <CyberButton onClick={handleAuthenticate} className="w-full py-4">
+                <CyberButton onClick={handleAuthenticate} className="w-full py-4" isLoading={isAuthLoading}>
                   SELECT_PROJECT_KEY
                 </CyberButton>
                 <a 
@@ -160,7 +181,6 @@ const App: React.FC = () => {
     );
   }
 
-  // Loader of transition
   if (isAuthenticated === null) return null;
 
   return (

@@ -75,11 +75,11 @@
       }
     </style>
     <script>
-      // Polyfill crucial para evitar "tela preta" por falta de definição de process
-      window.process = { 
-        env: { NODE_ENV: 'production' },
-        browser: true
-      };
+      // Polyfill NÃO DESTRUTIVO para evitar deletar a API_KEY injetada
+      window.process = window.process || {};
+      window.process.env = window.process.env || {};
+      if (!window.process.env.NODE_ENV) window.process.env.NODE_ENV = 'production';
+      window.process.browser = true;
       window.global = window;
 
       window.onerror = function(msg, url, line, col, error) {
