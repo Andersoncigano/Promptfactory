@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { optimizePrompt } from './services/geminiService';
-import { PromptAnalysis, HistoryItem } from './types';
-import { CyberButton, CyberPanel, SectionHeader, CyberModal, CyberAlert } from './components/CyberComponents';
-import { AnalysisView } from './components/AnalysisView';
+import { optimizePrompt } from './services/geminiService.ts';
+import { PromptAnalysis, HistoryItem } from './types.ts';
+import { CyberButton, CyberPanel, SectionHeader, CyberModal, CyberAlert } from './components/CyberComponents.tsx';
+import { AnalysisView } from './components/AnalysisView.tsx';
 
 const BLUEPRINTS = [
   {
@@ -42,6 +42,7 @@ const parseError = (err: string | null) => {
 }
 
 const App: React.FC = () => {
+  console.log("ORION_APP: INITIATING_MOUNT");
   const [inputPrompt, setInputPrompt] = useState<string>('');
   const [analysis, setAnalysis] = useState<PromptAnalysis | null>(null);
   const [loading, setLoading] = useState<boolean>(false);

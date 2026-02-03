@@ -75,15 +75,22 @@
       }
     </style>
     <script>
+      // Polyfill crucial para evitar "tela preta" por falta de definição de process
+      window.process = { 
+        env: { NODE_ENV: 'production' },
+        browser: true
+      };
+      window.global = window;
+
       window.onerror = function(msg, url, line, col, error) {
         console.error("FATAL_ERROR:", msg, "at", url, line, col);
         const root = document.getElementById('root');
-        if (root && root.innerHTML === '' || root.innerHTML.includes('INITIALIZING')) {
-          root.innerHTML = `<div style="color: #ff3333; font-family: 'Share Tech Mono', monospace; padding: 40px; border: 1px solid #ff3333; margin: 20px; background: rgba(255,0,0,0.1);">
+        if (root && (root.innerHTML === '' || root.innerHTML.includes('INITIALIZING'))) {
+          root.innerHTML = `<div style="color: #ff3333; font-family: 'Share Tech Mono', monospace; padding: 40px; border: 1px solid #ff3333; margin: 20px; background: rgba(255,0,0,0.1); z-index: 9999; position: relative;">
             <h1 style="font-size: 1.5rem; margin-bottom: 10px;">[KERNEL_PANIC]</h1>
             <p><strong>Message:</strong> ${msg}</p>
             <p><strong>Trace:</strong> ${url}:${line}:${col}</p>
-            <p style="margin-top: 20px; font-size: 0.8rem; opacity: 0.7;">Possible cause: ReferenceError on environment variables or module resolution failure.</p>
+            <button onclick="location.reload()" style="margin-top: 20px; background: #ff3333; color: white; border: none; padding: 10px 20px; cursor: pointer; font-family: inherit;">REBOOT_SYSTEM</button>
           </div>`;
         }
       };
@@ -102,6 +109,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
+    <script type="module" src="index.tsx"></script>
   </body>
 </html>

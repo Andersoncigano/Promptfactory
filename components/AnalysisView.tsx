@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
-import { PromptAnalysis, PerformanceMetrics, ModelConfig } from '../types';
-import { CyberPanel, CyberButton, CyberRange, CyberStatCard, CyberTooltip, CyberAlert } from './CyberComponents';
-import { generatePreview, evaluatePerformance } from '../services/geminiService';
+import { PromptAnalysis, PerformanceMetrics, ModelConfig } from '../types.ts';
+import { CyberPanel, CyberButton, CyberRange, CyberStatCard, CyberTooltip, CyberAlert } from './CyberComponents.tsx';
+import { generatePreview, evaluatePerformance } from '../services/geminiService.ts';
 
 interface AnalysisViewProps {
   analysis: PromptAnalysis;
@@ -9,7 +10,6 @@ interface AnalysisViewProps {
   language: 'pt-BR' | 'en';
 }
 
-// Updated Logic: Keys are in English (matching API output), Values are in Portuguese (Explanation)
 const TECHNIQUE_DEFINITIONS: Record<string, string> = {
   "Persona Adoption": "Atribui um papel específico (ex: 'Programador Expert') à IA para alinhar tom e base de conhecimento.",
   "Chain of Thought": "Força a IA a pensar passo-a-passo antes de responder, reduzindo erros de lógica.",
@@ -35,11 +35,9 @@ const parseError = (err: string | null) => {
 export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, language }) => {
   const [activeTab, setActiveTab] = useState<'diff' | 'preview' | 'analytics'>('diff');
   
-  // Preview State
   const [simulationResult, setSimulationResult] = useState<string | null>(null);
   const [simulating, setSimulating] = useState(false);
 
-  // Analytics State
   const [analyticsResult, setAnalyticsResult] = useState<PerformanceMetrics | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [modelConfig, setModelConfig] = useState<ModelConfig>({
@@ -60,7 +58,7 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
         setActiveTab('preview');
     } catch (e) {
         setError(e instanceof Error ? e.message : "SIMULATION FAILED|Unable to generate preview content.");
-        setActiveTab('preview'); // Switch to preview to show error
+        setActiveTab('preview'); 
     } finally {
         setSimulating(false);
     }
@@ -86,9 +84,7 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
   };
 
   const getTechniqueDef = (tech: string) => {
-    // Basic fuzzy matching or default to generic message
     const key = Object.keys(TECHNIQUE_DEFINITIONS).find(k => tech.includes(k) || k.includes(tech));
-    // Default fallback in Portuguese
     return key ? TECHNIQUE_DEFINITIONS[key] : "Estratégia de otimização avançada aplicada para melhorar a performance do modelo.";
   };
 
@@ -96,7 +92,6 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-      {/* Left Column: Metrics & Critique */}
       <div className="lg:col-span-1 space-y-6">
         <CyberPanel title="DIAGNOSTICS" className="h-auto">
           <div className="flex items-center justify-between mb-4">
@@ -113,7 +108,6 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
             ></div>
           </div>
 
-          {/* Original Input Section */}
           <h4 className="text-[#39ff14] font-header text-sm mb-2">ORIGINAL INPUT</h4>
           <div className="bg-black/30 p-3 border border-gray-800 mb-6 max-h-32 overflow-y-auto custom-scrollbar">
              <p className="text-gray-400 text-xs font-mono-tech whitespace-pre-wrap opacity-80 italic">
@@ -126,7 +120,6 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
             {analysis.critique}
           </p>
 
-          {/* Grammar & Syntax Module */}
           <div className="mb-6 border-t border-gray-800 pt-4">
              <h4 className="text-[#39ff14] font-header text-sm mb-3 flex items-center justify-between">
                 SYNTAX INTEGRITY
@@ -168,7 +161,6 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
         </CyberPanel>
       </div>
 
-      {/* Right Column: Comparison, Action & Analytics */}
       <div className="lg:col-span-2 flex flex-col gap-6">
         <div className="flex flex-wrap gap-4 mb-2">
             <CyberButton 
@@ -202,7 +194,6 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
             } 
             className="flex-grow min-h-[500px]"
         >
-           {/* Error Display inside the panel */}
            {errorObj && (
                <div className="mb-4">
                    <CyberAlert title={errorObj.title} message={errorObj.message} onClose={() => setError(null)} />
@@ -235,7 +226,6 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
 
            {activeTab === 'analytics' && (
                <div className="h-full flex flex-col gap-6">
-                   {/* Configuration Area */}
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 border border-[#7b2cbf]/30 bg-black/20">
                         <div className="col-span-1 md:col-span-2 grid grid-cols-2 gap-4">
                             <CyberRange 
@@ -258,7 +248,6 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, onApply, l
                         </div>
                    </div>
 
-                   {/* Results Area */}
                    {!error && (
                        analyticsResult ? (
                            <div className="flex-grow flex flex-col gap-4 overflow-y-auto custom-scrollbar">
