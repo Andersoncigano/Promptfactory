@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -20,6 +21,7 @@
         color: #e0e0e0;
         font-family: 'Rajdhani', sans-serif;
         overflow-x: hidden;
+        margin: 0;
       }
       .font-header {
         font-family: 'Orbitron', sans-serif;
@@ -28,7 +30,6 @@
         font-family: 'Share Tech Mono', monospace;
       }
       
-      /* Cyberpunk Scrollbar */
       ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
@@ -44,39 +45,63 @@
         background: var(--color-electric-purple); 
       }
 
-      /* CRT Grid Effect */
       .bg-grid-pattern {
         background-size: 40px 40px;
         background-image: linear-gradient(to right, rgba(57, 255, 20, 0.05) 1px, transparent 1px),
                           linear-gradient(to bottom, rgba(57, 255, 20, 0.05) 1px, transparent 1px);
       }
       
-      /* Glitch Animation Keyframes */
-      @keyframes glitch {
-        0% { transform: translate(0) }
-        20% { transform: translate(-2px, 2px) }
-        40% { transform: translate(-2px, -2px) }
-        60% { transform: translate(2px, 2px) }
-        80% { transform: translate(2px, -2px) }
-        100% { transform: translate(0) }
+      .clip-path-polygon {
+        clip-path: polygon(10% 0%, 100% 0%, 100% 70%, 90% 100%, 0% 100%, 0% 30%);
       }
-      .glitch-hover:hover {
-        animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+
+      #root:empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        background: #050505;
+      }
+      #root:empty::after {
+        content: "INITIALIZING_NEURAL_CORE...";
+        color: #39ff14;
+        font-family: 'Share Tech Mono', monospace;
+        letter-spacing: 0.2em;
+        animation: pulse 1.5s infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
       }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
-  }
-}
-</script>
-</head>
+    <script>
+      window.onerror = function(msg, url, line, col, error) {
+        console.error("FATAL_ERROR:", msg, "at", url, line, col);
+        const root = document.getElementById('root');
+        if (root && root.innerHTML === '' || root.innerHTML.includes('INITIALIZING')) {
+          root.innerHTML = `<div style="color: #ff3333; font-family: 'Share Tech Mono', monospace; padding: 40px; border: 1px solid #ff3333; margin: 20px; background: rgba(255,0,0,0.1);">
+            <h1 style="font-size: 1.5rem; margin-bottom: 10px;">[KERNEL_PANIC]</h1>
+            <p><strong>Message:</strong> ${msg}</p>
+            <p><strong>Trace:</strong> ${url}:${line}:${col}</p>
+            <p style="margin-top: 20px; font-size: 0.8rem; opacity: 0.7;">Possible cause: ReferenceError on environment variables or module resolution failure.</p>
+          </div>`;
+        }
+      };
+    </script>
+    <script type="importmap">
+    {
+      "imports": {
+        "react/": "https://aistudiocdn.com/react@^19.2.0/",
+        "react": "https://aistudiocdn.com/react@^19.2.0",
+        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+        "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+        "react-dom/client": "https://aistudiocdn.com/react-dom@^19.2.0/client"
+      }
+    }
+    </script>
+  </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>

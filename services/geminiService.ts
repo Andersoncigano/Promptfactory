@@ -2,6 +2,31 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { PromptAnalysis, ModelConfig, PerformanceMetrics } from "../types";
 
+/**
+ * Obtém a chave da API de forma segura para evitar crashes de inicialização
+ * no navegador onde 'process' pode não estar definido globalmente.
+ */
+const getSafeApiKey = (): string => {
+    try {
+        // @ts-ignore
+        if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+            // @ts-ignore
+            return process.env.API_KEY;
+        }
+    } catch (e) {
+        console.warn("Could not access process.env.API_KEY safely.");
+    }
+    return "";
+};
+
+const getAIClient = () => {
+    const apiKey = getSafeApiKey();
+    if (!apiKey) {
+        throw new Error("AUTH FAILURE|API key is missing in the environment configuration.");
+    }
+    return new GoogleGenAI({ apiKey });
+};
+
 const handleGenAIError = (error: unknown): never => {
     console.error("Gemini Service Error:", error);
     
@@ -27,9 +52,6 @@ const handleGenAIError = (error: unknown): never => {
 
     throw new Error(`${title}|${message}`);
 };
-
-// Standard initialization as per instructions
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const analysisSchema = {
   type: Type.OBJECT,
@@ -57,6 +79,7 @@ const analysisSchema = {
 
 export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'en'): Promise<PromptAnalysis> => {
   try {
+      const ai = getAIClient();
       const model = 'gemini-3-pro-preview';
       const langInstruction = language === 'pt-BR' 
           ? "OUTPUT LANGUAGE: PORTUGUESE (BRAZIL). Critique and optimizedPrompt fields MUST be in Portuguese."
@@ -91,6 +114,7 @@ export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'e
 
 export const generatePreview = async (prompt: string): Promise<string> => {
     try {
+        const ai = getAIClient();
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: prompt,
@@ -103,6 +127,7 @@ export const generatePreview = async (prompt: string): Promise<string> => {
 
 export const evaluatePerformance = async (prompt: string, config: ModelConfig, language: 'pt-BR' | 'en'): Promise<PerformanceMetrics> => {
     try {
+        const ai = getAIClient();
         const genResponse = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: prompt,
