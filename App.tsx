@@ -5,6 +5,9 @@ import { PromptAnalysis, HistoryItem } from './types.ts';
 import { CyberButton, CyberPanel, SectionHeader, CyberModal, CyberAlert } from './components/CyberComponents.tsx';
 import { AnalysisView } from './components/AnalysisView.tsx';
 
+// Removed conflicting manual declaration of aistudio on Window interface
+// to resolve duplicate identifier and modifier mismatch errors.
+
 const BLUEPRINTS = [
   {
     id: 'sys-architect',
@@ -42,7 +45,7 @@ const parseError = (err: string | null) => {
 }
 
 const App: React.FC = () => {
-  console.log("ORION_APP: INITIATING_MOUNT");
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [inputPrompt, setInputPrompt] = useState<string>('');
   const [analysis, setAnalysis] = useState<PromptAnalysis | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -55,6 +58,8 @@ const App: React.FC = () => {
   const MAX_INPUT_CHARS = 100000;
 
   useEffect(() => {
+    checkAuth();
+    
     const saved = localStorage.getItem('orion_history');
     if (saved) {
       try {
@@ -66,6 +71,22 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('orion_history', JSON.stringify(history));
   }, [history]);
+
+  const checkAuth = async () => {
+    try {
+      // Use type assertion to avoid conflict with predefined aistudio type in the environment
+      const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+      setIsAuthenticated(hasKey);
+    } catch (e) {
+      setIsAuthenticated(false);
+    }
+  };
+
+  const handleAuthenticate = async () => {
+    // Mitigate race condition by assuming success after opening select key dialog
+    await (window as any).aistudio.openSelectKey();
+    setIsAuthenticated(true);
+  };
 
   const addToHistory = (result: PromptAnalysis) => {
     const newItem: HistoryItem = {
@@ -89,14 +110,58 @@ const App: React.FC = () => {
         setAnalysis(result);
         addToHistory(result);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "SYSTEM FAILURE|Optimization protocol failed.");
+    } catch (err: any) {
+      const errMsg = err instanceof Error ? err.message : "SYSTEM FAILURE|Optimization protocol failed.";
+      setError(errMsg);
+      
+      // If requested entity not found, reset auth state as per guidelines
+      if (errMsg.includes("Requested entity was not found") || errMsg.includes("AUTH FAILURE")) {
+        setIsAuthenticated(false);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const errorObj = parseError(error);
+
+  // Initial Authentication Screen
+  if (isAuthenticated === false) {
+    return (
+      <div className="min-h-screen bg-[#050505] text-[#e0e0e0] flex items-center justify-center p-6">
+        <div className="fixed inset-0 bg-grid-pattern opacity-20 pointer-events-none"></div>
+        <div className="max-w-md w-full relative z-10">
+          <CyberPanel title="CORE_INITIALIZATION">
+            <div className="text-center py-8">
+              <div className="w-16 h-16 bg-red-500/20 border border-red-500 flex items-center justify-center mx-auto mb-6 clip-path-polygon animate-pulse">
+                <span className="text-red-500 font-header font-bold text-3xl">!</span>
+              </div>
+              <h2 className="text-[#39ff14] font-header text-xl mb-4 tracking-widest">CREDENTIALS_REQUIRED</h2>
+              <p className="text-gray-400 font-mono-tech text-sm mb-8 leading-relaxed">
+                ORION CORE v3.2 requires a valid Project API Key with active billing to access Gemini 3 series models.
+              </p>
+              <div className="space-y-4">
+                <CyberButton onClick={handleAuthenticate} className="w-full py-4">
+                  SELECT_PROJECT_KEY
+                </CyberButton>
+                <a 
+                  href="https://ai.google.dev/gemini-api/docs/billing" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="block text-[10px] text-[#7b2cbf] hover:text-[#39ff14] transition-colors font-mono-tech uppercase tracking-widest"
+                >
+                  [VIEW_BILLING_DOCUMENTATION]
+                </a>
+              </div>
+            </div>
+          </CyberPanel>
+        </div>
+      </div>
+    );
+  }
+
+  // Loader of transition
+  if (isAuthenticated === null) return null;
 
   return (
     <div className="min-h-screen bg-[#050505] text-[#e0e0e0] font-mono-tech selection:bg-[#39ff14] selection:text-black">
@@ -132,7 +197,11 @@ const App: React.FC = () => {
 
       <main className="relative z-10 max-w-7xl mx-auto p-6 lg:p-8">
         {errorObj && (
-          <CyberAlert title={errorObj.title} message={errorObj.message} onClose={() => setError(null)} />
+          <CyberAlert 
+            title={errorObj.title} 
+            message={errorObj.message} 
+            onClose={() => setError(null)} 
+          />
         )}
 
         {!analysis ? (
