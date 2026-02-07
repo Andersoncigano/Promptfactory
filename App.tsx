@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { optimizePrompt } from './services/geminiService.ts';
 import { PromptAnalysis, HistoryItem } from './types.ts';
 import { CyberButton, CyberPanel, SectionHeader, CyberModal, CyberAlert } from './components/CyberComponents.tsx';
@@ -41,7 +41,6 @@ const parseError = (err: string | null) => {
     return { title: "SYSTEM ERROR", message: err };
 }
 
-// Tela de carregamento para evitar o estado "preto"
 const BootScreen: React.FC = () => (
   <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 font-mono-tech">
     <div className="fixed inset-0 bg-grid-pattern opacity-10 pointer-events-none"></div>
@@ -76,27 +75,39 @@ const App: React.FC = () => {
 
   const MAX_INPUT_CHARS = 100000;
 
+  const checkAuthStatus = useCallback(async () => {
+    try {
+      if ((window as any).aistudio) {
+        const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+        setIsAuthenticated(hasKey);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error("Auth check internal error:", e);
+      return false;
+    }
+  }, []);
+
   useEffect(() => {
-    // Tentativa de verificação com retry para lidar com carregamento do objeto window
-    let retries = 0;
-    const checkWithRetry = async () => {
-      try {
-        if ((window as any).aistudio) {
-          const hasKey = await (window as any).aistudio.hasSelectedApiKey();
-          setIsAuthenticated(hasKey);
-        } else if (retries < 5) {
-          retries++;
-          setTimeout(checkWithRetry, 200);
-        } else {
-          setIsAuthenticated(false);
-        }
-      } catch (e) {
-        console.error("Auth check failed:", e);
+    let intervalId: number;
+    let attempts = 0;
+    const maxAttempts = 50; // Tenta por ~10 segundos
+
+    const poll = async () => {
+      const found = await checkAuthStatus();
+      attempts++;
+      
+      if (found) {
+        clearInterval(intervalId);
+      } else if (attempts >= maxAttempts) {
+        clearInterval(intervalId);
         setIsAuthenticated(false);
       }
     };
 
-    checkWithRetry();
+    intervalId = window.setInterval(poll, 200);
+    poll();
     
     const saved = localStorage.getItem('orion_history');
     if (saved) {
@@ -104,7 +115,9 @@ const App: React.FC = () => {
         setHistory(JSON.parse(saved));
       } catch (e) { console.error("History parse failed"); }
     }
-  }, []);
+
+    return () => clearInterval(intervalId);
+  }, [checkAuthStatus]);
 
   useEffect(() => {
     localStorage.setItem('orion_history', JSON.stringify(history));
@@ -112,16 +125,24 @@ const App: React.FC = () => {
 
   const handleAuthenticate = async () => {
     setIsAuthLoading(true);
+    setError(null);
+    
     try {
+      // Pequena espera adicional se o objeto ainda não estiver lá
+      if (!(window as any).aistudio) {
+        await new Promise(resolve => setTimeout(resolve, 800));
+      }
+
       if ((window as any).aistudio) {
         await (window as any).aistudio.openSelectKey();
+        // Conforme diretriz: assumir sucesso após abrir o diálogo
         setIsAuthenticated(true);
       } else {
-        throw new Error("AISTUDIO_NOT_READY|System core modules are still initializing.");
+        throw new Error("AISTUDIO_NOT_READY|Neural modules are still loading. Please wait 5 seconds and try again.");
       }
     } catch (e: any) {
-      console.error("Authentication failed:", e);
-      setError(e.message || "AUTH_MALFUNCTION|Failed to open credential selector.");
+      console.error("Authentication trigger failed:", e);
+      setError(e.message || "AUTH_MALFUNCTION|Failed to reach credential gate.");
     } finally {
       setIsAuthLoading(false);
     }
@@ -173,33 +194,38 @@ const App: React.FC = () => {
         <div className="fixed inset-0 bg-grid-pattern opacity-20 pointer-events-none"></div>
         <div className="max-w-md w-full relative z-10">
           <CyberPanel title="CORE_INITIALIZATION">
-            <div className="text-center py-8">
+            <div className="text-center py-6">
               <div className="w-16 h-16 bg-red-500/20 border border-red-500 flex items-center justify-center mx-auto mb-6 clip-path-polygon animate-pulse">
                 <span className="text-red-500 font-header font-bold text-3xl">!</span>
               </div>
               <h2 className="text-[#39ff14] font-header text-xl mb-4 tracking-widest">CREDENTIALS_REQUIRED</h2>
-              <p className="text-gray-400 font-mono-tech text-sm mb-8 leading-relaxed">
-                ORION CORE v3.2 requires a valid Project API Key with active billing to access Gemini 3 series models.
+              <p className="text-gray-400 font-mono-tech text-xs mb-8 leading-relaxed px-4">
+                ORION CORE v3.2 requires a valid Project API Key from a paid Google Cloud project to access Gemini 3 series models.
               </p>
               
               {errorObj && (
-                <div className="mb-6 text-left">
+                <div className="mb-6 text-left px-2">
                   <CyberAlert title={errorObj.title} message={errorObj.message} onClose={() => setError(null)} />
                 </div>
               )}
 
-              <div className="space-y-4">
-                <CyberButton onClick={handleAuthenticate} className="w-full py-4" isLoading={isAuthLoading}>
+              <div className="space-y-6 px-4">
+                <CyberButton onClick={handleAuthenticate} className="w-full py-4 text-sm" isLoading={isAuthLoading}>
                   SELECT_PROJECT_KEY
                 </CyberButton>
-                <a 
-                  href="https://ai.google.dev/gemini-api/docs/billing" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="block text-[10px] text-[#7b2cbf] hover:text-[#39ff14] transition-colors font-mono-tech uppercase tracking-widest"
-                >
-                  [VIEW_BILLING_DOCUMENTATION]
-                </a>
+                <div className="flex flex-col gap-2">
+                  <a 
+                    href="https://ai.google.dev/gemini-api/docs/billing" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-[#7b2cbf] hover:text-[#39ff14] transition-colors font-mono-tech uppercase tracking-widest underline decoration-dotted"
+                  >
+                    [CHECK_BILLING_REQUIREMENTS]
+                  </a>
+                  <p className="text-[9px] text-gray-600 font-mono-tech italic">
+                    If the button fails, ensure you are in a supported environment.
+                  </p>
+                </div>
               </div>
             </div>
           </CyberPanel>
