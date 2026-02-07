@@ -75,40 +75,35 @@ const App: React.FC = () => {
 
   const MAX_INPUT_CHARS = 100000;
 
-  const checkAuthStatus = useCallback(async () => {
-    try {
-      if ((window as any).aistudio) {
-        const hasKey = await (window as any).aistudio.hasSelectedApiKey();
-        setIsAuthenticated(hasKey);
-        return true;
-      }
-      return false;
-    } catch (e) {
-      console.error("Auth check internal error:", e);
-      return false;
-    }
-  }, []);
-
   useEffect(() => {
-    let intervalId: number;
     let attempts = 0;
-    const maxAttempts = 50; // Tenta por ~10 segundos
+    const maxAttempts = 15; // Tenta por ~3 segundos
 
-    const poll = async () => {
-      const found = await checkAuthStatus();
-      attempts++;
-      
-      if (found) {
-        clearInterval(intervalId);
-      } else if (attempts >= maxAttempts) {
-        clearInterval(intervalId);
-        setIsAuthenticated(false);
+    const check = async () => {
+      try {
+        if ((window as any).aistudio) {
+          const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+          setIsAuthenticated(hasKey);
+          return true;
+        }
+      } catch (e) {
+        console.error("Auth check failed:", e);
       }
+      return false;
     };
 
-    intervalId = window.setInterval(poll, 200);
-    poll();
-    
+    const interval = setInterval(async () => {
+      const found = await check();
+      attempts++;
+      if (found || attempts >= maxAttempts) {
+        clearInterval(interval);
+        // Se não encontrou após 3 segundos, assume que pode prosseguir (Otimismo)
+        if (isAuthenticated === null && attempts >= maxAttempts) {
+          setIsAuthenticated(true);
+        }
+      }
+    }, 200);
+
     const saved = localStorage.getItem('orion_history');
     if (saved) {
       try {
@@ -116,8 +111,8 @@ const App: React.FC = () => {
       } catch (e) { console.error("History parse failed"); }
     }
 
-    return () => clearInterval(intervalId);
-  }, [checkAuthStatus]);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('orion_history', JSON.stringify(history));
@@ -126,38 +121,19 @@ const App: React.FC = () => {
   const handleAuthenticate = async () => {
     setIsAuthLoading(true);
     setError(null);
-    
     try {
-      // Pequena espera adicional se o objeto ainda não estiver lá
-      if (!(window as any).aistudio) {
-        await new Promise(resolve => setTimeout(resolve, 800));
-      }
-
       if ((window as any).aistudio) {
         await (window as any).aistudio.openSelectKey();
-        // Conforme diretriz: assumir sucesso após abrir o diálogo
         setIsAuthenticated(true);
       } else {
-        throw new Error("AISTUDIO_NOT_READY|Neural modules are still loading. Please wait 5 seconds and try again.");
+        // Se o botão foi clicado e não há aistudio, pode ser um erro de ambiente real
+        throw new Error("ENVIRONMENT_INCOMPATIBLE|O módulo de seleção de chaves não está disponível neste navegador.");
       }
     } catch (e: any) {
-      console.error("Authentication trigger failed:", e);
-      setError(e.message || "AUTH_MALFUNCTION|Failed to reach credential gate.");
+      setError(e.message || "AUTH_FAILURE|Não foi possível abrir o seletor de credenciais.");
     } finally {
       setIsAuthLoading(false);
     }
-  };
-
-  const addToHistory = (result: PromptAnalysis) => {
-    const newItem: HistoryItem = {
-      id: Date.now().toString(),
-      timestamp: Date.now(),
-      originalPreview: result.originalText.substring(0, 40) + (result.originalText.length > 40 ? '...' : ''),
-      optimizedPreview: result.optimizedPrompt.substring(0, 40) + (result.optimizedPrompt.length > 40 ? '...' : ''),
-      score: result.score,
-      fullAnalysis: result
-    };
-    setHistory(prev => [newItem, ...prev].slice(0, 20));
   };
 
   const handleOptimize = async () => {
@@ -168,12 +144,21 @@ const App: React.FC = () => {
       const result = await optimizePrompt(inputPrompt, language);
       if (result) {
         setAnalysis(result);
-        addToHistory(result);
+        const newItem: HistoryItem = {
+          id: Date.now().toString(),
+          timestamp: Date.now(),
+          originalPreview: result.originalText.substring(0, 40) + '...',
+          optimizedPreview: result.optimizedPrompt.substring(0, 40) + '...',
+          score: result.score,
+          fullAnalysis: result
+        };
+        setHistory(prev => [newItem, ...prev].slice(0, 20));
       }
     } catch (err: any) {
-      const errMsg = err instanceof Error ? err.message : "SYSTEM FAILURE|Optimization protocol failed.";
+      const errMsg = err instanceof Error ? err.message : "SYSTEM FAILURE|Falha na otimização.";
       setError(errMsg);
       
+      // Se falhar por falta de chave, volta para a tela de auth
       if (errMsg.includes("Requested entity was not found") || errMsg.includes("AUTH FAILURE")) {
         setIsAuthenticated(false);
       }
@@ -184,9 +169,7 @@ const App: React.FC = () => {
 
   const errorObj = parseError(error);
 
-  if (isAuthenticated === null) {
-    return <BootScreen />;
-  }
+  if (isAuthenticated === null) return <BootScreen />;
 
   if (isAuthenticated === false) {
     return (
@@ -198,9 +181,9 @@ const App: React.FC = () => {
               <div className="w-16 h-16 bg-red-500/20 border border-red-500 flex items-center justify-center mx-auto mb-6 clip-path-polygon animate-pulse">
                 <span className="text-red-500 font-header font-bold text-3xl">!</span>
               </div>
-              <h2 className="text-[#39ff14] font-header text-xl mb-4 tracking-widest">CREDENTIALS_REQUIRED</h2>
+              <h2 className="text-[#39ff14] font-header text-xl mb-4 tracking-widest uppercase">Acesso Bloqueado</h2>
               <p className="text-gray-400 font-mono-tech text-xs mb-8 leading-relaxed px-4">
-                ORION CORE v3.2 requires a valid Project API Key from a paid Google Cloud project to access Gemini 3 series models.
+                Uma chave de API válida com faturamento ativo é necessária para acessar os modelos Gemini 3.
               </p>
               
               {errorObj && (
@@ -211,20 +194,15 @@ const App: React.FC = () => {
 
               <div className="space-y-6 px-4">
                 <CyberButton onClick={handleAuthenticate} className="w-full py-4 text-sm" isLoading={isAuthLoading}>
-                  SELECT_PROJECT_KEY
+                  SELECIONAR CHAVE DO PROJETO
                 </CyberButton>
                 <div className="flex flex-col gap-2">
-                  <a 
-                    href="https://ai.google.dev/gemini-api/docs/billing" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-[10px] text-[#7b2cbf] hover:text-[#39ff14] transition-colors font-mono-tech uppercase tracking-widest underline decoration-dotted"
-                  >
-                    [CHECK_BILLING_REQUIREMENTS]
+                  <button onClick={() => setIsAuthenticated(true)} className="text-[10px] text-gray-500 hover:text-[#39ff14] font-mono-tech uppercase">
+                    [Tentar Acesso Direto]
+                  </button>
+                  <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-[10px] text-[#7b2cbf] hover:text-[#39ff14] font-mono-tech uppercase underline decoration-dotted">
+                    [Requisitos de Faturamento]
                   </a>
-                  <p className="text-[9px] text-gray-600 font-mono-tech italic">
-                    If the button fails, ensure you are in a supported environment.
-                  </p>
                 </div>
               </div>
             </div>
@@ -267,13 +245,7 @@ const App: React.FC = () => {
       </header>
 
       <main className="relative z-10 max-w-7xl mx-auto p-6 lg:p-8">
-        {errorObj && (
-          <CyberAlert 
-            title={errorObj.title} 
-            message={errorObj.message} 
-            onClose={() => setError(null)} 
-          />
-        )}
+        {errorObj && <CyberAlert title={errorObj.title} message={errorObj.message} onClose={() => setError(null)} />}
 
         {!analysis ? (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fadeIn">
@@ -292,16 +264,10 @@ const App: React.FC = () => {
                 </div>
                 <div className="mt-4 flex justify-between items-center">
                   <div className="flex gap-4">
-                    <CyberButton variant="secondary" onClick={() => setShowBlueprints(true)}>
-                      LOAD_BLUEPRINTS
-                    </CyberButton>
-                    <CyberButton variant="secondary" onClick={() => setInputPrompt('')}>
-                      CLEAR_BUFFER
-                    </CyberButton>
+                    <CyberButton variant="secondary" onClick={() => setShowBlueprints(true)}>LOAD_BLUEPRINTS</CyberButton>
+                    <CyberButton variant="secondary" onClick={() => setInputPrompt('')}>CLEAR_BUFFER</CyberButton>
                   </div>
-                  <CyberButton onClick={handleOptimize} isLoading={loading} disabled={!inputPrompt.trim()}>
-                    INITIATE_OPTIMIZATION
-                  </CyberButton>
+                  <CyberButton onClick={handleOptimize} isLoading={loading} disabled={!inputPrompt.trim()}>INITIATE_OPTIMIZATION</CyberButton>
                 </div>
               </CyberPanel>
             </div>
@@ -310,11 +276,7 @@ const App: React.FC = () => {
               <SectionHeader title="ACTIVE_ARCHETYPES" subtitle="Pre-defined neural templates" />
               <div className="space-y-4">
                 {BLUEPRINTS.map(bp => (
-                  <div 
-                    key={bp.id} 
-                    onClick={() => setInputPrompt(bp.prompt)}
-                    className="group border border-[#7b2cbf]/30 p-4 bg-black/40 hover:border-[#39ff14] transition-all cursor-pointer"
-                  >
+                  <div key={bp.id} onClick={() => setInputPrompt(bp.prompt)} className="group border border-[#7b2cbf]/30 p-4 bg-black/40 hover:border-[#39ff14] transition-all cursor-pointer">
                     <h3 className="text-[#e0e0e0] font-header text-xs mb-1 group-hover:text-[#39ff14] transition-colors">{bp.title}</h3>
                     <p className="text-gray-500 text-[10px] font-mono-tech">{bp.desc}</p>
                   </div>
@@ -325,89 +287,41 @@ const App: React.FC = () => {
         ) : (
           <div className="animate-slideIn">
             <div className="mb-6 flex items-center justify-between">
-              <CyberButton variant="secondary" onClick={() => setAnalysis(null)}>
-                &lt; BACK_TO_INPUT
-              </CyberButton>
-              <div className="flex gap-4">
-                <CyberButton onClick={() => { setAnalysis(null); handleOptimize(); }}>
-                  RE-OPTIMIZE
-                </CyberButton>
-              </div>
+              <CyberButton variant="secondary" onClick={() => setAnalysis(null)}>&lt; BACK_TO_INPUT</CyberButton>
+              <CyberButton onClick={() => { setAnalysis(null); handleOptimize(); }}>RE-OPTIMIZE</CyberButton>
             </div>
-            <AnalysisView 
-              analysis={analysis} 
-              language={language}
-              onApply={(optimized) => {
-                setInputPrompt(optimized);
-                setAnalysis(null);
-              }} 
-            />
+            <AnalysisView analysis={analysis} language={language} onApply={(optimized) => { setInputPrompt(optimized); setAnalysis(null); }} />
           </div>
         )}
       </main>
 
       <CyberModal isOpen={showHistory} onClose={() => setShowHistory(false)} title="NEURAL_HISTORY_LOG">
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
-          {history.length === 0 ? (
-            <p className="text-center text-gray-500 py-8 italic font-mono-tech">No optimization logs found.</p>
-          ) : (
-            history.map(item => (
-              <div 
-                key={item.id} 
-                onClick={() => { setAnalysis(item.fullAnalysis); setShowHistory(false); }}
-                className="bg-black/40 border border-[#7b2cbf]/30 p-4 hover:border-[#39ff14] transition-all cursor-pointer group"
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-[10px] text-gray-500">{new Date(item.timestamp).toLocaleString()}</span>
-                  <span className="text-[#39ff14] text-xs font-bold">{item.score}/100</span>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-[8px] text-[#7b2cbf] uppercase block mb-1">Source</span>
-                    <p className="text-gray-400 text-[10px] truncate italic">{item.originalPreview}</p>
-                  </div>
-                  <div>
-                    <span className="text-[8px] text-[#39ff14] uppercase block mb-1">Optimized</span>
-                    <p className="text-[#e0e0e0] text-[10px] truncate">{item.optimizedPreview}</p>
-                  </div>
-                </div>
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2 text-xs">
+          {history.length === 0 ? <p className="text-center text-gray-500 py-8 italic font-mono-tech">Empty history.</p> : history.map(item => (
+            <div key={item.id} onClick={() => { setAnalysis(item.fullAnalysis); setShowHistory(false); }} className="bg-black/40 border border-[#7b2cbf]/30 p-4 hover:border-[#39ff14] transition-all cursor-pointer group">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[10px] text-gray-500">{new Date(item.timestamp).toLocaleString()}</span>
+                <span className="text-[#39ff14] font-bold">{item.score}/100</span>
               </div>
-            ))
-          )}
-        </div>
-        <div className="mt-6 flex justify-center">
-            <CyberButton variant="danger" onClick={() => { setHistory([]); localStorage.removeItem('orion_history'); }} className="text-xs">
-                WIPE_HISTORY
-            </CyberButton>
+              <div className="grid grid-cols-2 gap-4">
+                <p className="text-gray-400 truncate italic">{item.originalPreview}</p>
+                <p className="text-[#e0e0e0] truncate">{item.optimizedPreview}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </CyberModal>
 
       <CyberModal isOpen={showBlueprints} onClose={() => setShowBlueprints(false)} title="ARCHITECT_BLUEPRINTS">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {BLUEPRINTS.map(bp => (
-            <div 
-              key={bp.id}
-              onClick={() => { setInputPrompt(bp.prompt); setShowBlueprints(false); }}
-              className="border border-[#7b2cbf]/30 p-4 hover:border-[#39ff14] cursor-pointer transition-all bg-black/40 group"
-            >
-              <h4 className="text-[#39ff14] font-header text-sm mb-2 group-hover:translate-x-1 transition-transform">{bp.title}</h4>
+            <div key={bp.id} onClick={() => { setInputPrompt(bp.prompt); setShowBlueprints(false); }} className="border border-[#7b2cbf]/30 p-4 hover:border-[#39ff14] cursor-pointer transition-all bg-black/40 group">
+              <h4 className="text-[#39ff14] font-header text-sm mb-2">{bp.title}</h4>
               <p className="text-gray-400 text-xs mb-4 leading-relaxed">{bp.desc}</p>
             </div>
           ))}
         </div>
       </CyberModal>
-
-      <footer className="mt-12 border-t border-[#7b2cbf]/20 py-8 relative z-10">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="text-[10px] text-gray-600 font-mono-tech tracking-widest">
-            © 2025 ORION_CORP // CORE_INTERFACE_STABLE
-          </div>
-          <div className="flex gap-6">
-            <span className="text-[10px] text-[#39ff14] animate-pulse">SYSTEM_STATUS: OPTIMAL</span>
-            <span className="text-[10px] text-[#7b2cbf]">GEMINI_ENGINE: ONLINE</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };
