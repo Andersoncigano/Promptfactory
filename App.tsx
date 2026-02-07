@@ -41,6 +41,27 @@ const parseError = (err: string | null) => {
     return { title: "SYSTEM ERROR", message: err };
 }
 
+// Tela de carregamento para evitar o estado "preto"
+const BootScreen: React.FC = () => (
+  <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 font-mono-tech">
+    <div className="fixed inset-0 bg-grid-pattern opacity-10 pointer-events-none"></div>
+    <div className="relative">
+      <div className="w-24 h-24 border-2 border-[#39ff14]/20 border-t-[#39ff14] rounded-full animate-spin mb-8"></div>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-[#39ff14] text-xl font-header animate-pulse">O</span>
+      </div>
+    </div>
+    <div className="space-y-2 text-center">
+      <p className="text-[#39ff14] tracking-[0.5em] text-xs uppercase animate-pulse">Initializing_ORION_Core</p>
+      <div className="flex gap-1 justify-center">
+        <span className="w-1 h-1 bg-[#39ff14] animate-[ping_1s_infinite_100ms]"></span>
+        <span className="w-1 h-1 bg-[#39ff14] animate-[ping_1s_infinite_200ms]"></span>
+        <span className="w-1 h-1 bg-[#39ff14] animate-[ping_1s_infinite_300ms]"></span>
+      </div>
+    </div>
+  </div>
+);
+
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false);
@@ -56,7 +77,26 @@ const App: React.FC = () => {
   const MAX_INPUT_CHARS = 100000;
 
   useEffect(() => {
-    checkAuth();
+    // Tentativa de verificação com retry para lidar com carregamento do objeto window
+    let retries = 0;
+    const checkWithRetry = async () => {
+      try {
+        if ((window as any).aistudio) {
+          const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+          setIsAuthenticated(hasKey);
+        } else if (retries < 5) {
+          retries++;
+          setTimeout(checkWithRetry, 200);
+        } else {
+          setIsAuthenticated(false);
+        }
+      } catch (e) {
+        console.error("Auth check failed:", e);
+        setIsAuthenticated(false);
+      }
+    };
+
+    checkWithRetry();
     
     const saved = localStorage.getItem('orion_history');
     if (saved) {
@@ -70,28 +110,11 @@ const App: React.FC = () => {
     localStorage.setItem('orion_history', JSON.stringify(history));
   }, [history]);
 
-  const checkAuth = async () => {
-    try {
-      if ((window as any).aistudio) {
-        const hasKey = await (window as any).aistudio.hasSelectedApiKey();
-        setIsAuthenticated(hasKey);
-      } else {
-        console.warn("aistudio not found in window");
-        setIsAuthenticated(false);
-      }
-    } catch (e) {
-      console.error("Auth check failed:", e);
-      setIsAuthenticated(false);
-    }
-  };
-
   const handleAuthenticate = async () => {
     setIsAuthLoading(true);
     try {
       if ((window as any).aistudio) {
-        console.log("Opening API key selector...");
         await (window as any).aistudio.openSelectKey();
-        // Conforme as regras, assumimos sucesso imediatamente após abrir o diálogo
         setIsAuthenticated(true);
       } else {
         throw new Error("AISTUDIO_NOT_READY|System core modules are still initializing.");
@@ -140,6 +163,10 @@ const App: React.FC = () => {
 
   const errorObj = parseError(error);
 
+  if (isAuthenticated === null) {
+    return <BootScreen />;
+  }
+
   if (isAuthenticated === false) {
     return (
       <div className="min-h-screen bg-[#050505] text-[#e0e0e0] flex items-center justify-center p-6">
@@ -180,8 +207,6 @@ const App: React.FC = () => {
       </div>
     );
   }
-
-  if (isAuthenticated === null) return null;
 
   return (
     <div className="min-h-screen bg-[#050505] text-[#e0e0e0] font-mono-tech selection:bg-[#39ff14] selection:text-black">
