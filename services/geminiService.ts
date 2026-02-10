@@ -4,23 +4,36 @@ import { PromptAnalysis, ModelConfig, PerformanceMetrics } from "../types.ts";
 
 // Helper for handling API errors and identifying auth/entity failures
 const handleGenAIError = (error: any): never => {
-    console.error("Gemini Service Error:", error);
+    console.error("[GEMINI_SERVICE_FAILURE]:", error);
     
-    let title = "SYSTEM ERROR";
+    let title = "SYSTEM_ERROR";
     let message = error.message || "An unexpected malfunction occurred in the neural core.";
 
     const errorMsg = message.toLowerCase();
     
-    // Specific error requiring new API key selection
-    if (errorMsg.includes("requested entity was not found") || errorMsg.includes("401") || errorMsg.includes("api key")) {
-        title = "AUTH FAILURE";
-        message = "Security handshake failed. A project API key with billing enabled is required.";
+    if (errorMsg.includes("requested entity was not found") || errorMsg.includes("401") || errorMsg.includes("api key") || errorMsg.includes("invalid api key")) {
+        title = "AUTH_FAILURE";
+        message = "Security handshake failed. A valid project API key with billing enabled is required.";
     } else if (errorMsg.includes("429") || errorMsg.includes("quota")) {
-        title = "QUOTA EXCEEDED";
+        title = "QUOTA_EXCEEDED";
         message = "Neural bandwidth exhausted. Please wait for cool-down.";
+    } else if (errorMsg.includes("fetch")) {
+        title = "NETWORK_DISRUPTION";
+        message = "Failed to establish a link with the Gemini backbone.";
     }
 
     throw new Error(`${title}|${message}`);
+};
+
+// Clean and parse JSON response accurately
+const cleanJSONResponse = (text: string): any => {
+    try {
+        const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(cleaned);
+    } catch (e) {
+        console.error("[JSON_PARSE_ERROR]: Failed to parse model output:", text);
+        throw new Error("PARSING_ERROR|The neural core returned a corrupted data stream.");
+    }
 };
 
 const analysisSchema = {
@@ -49,18 +62,18 @@ const analysisSchema = {
 
 export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'en'): Promise<PromptAnalysis> => {
   try {
-      // Dynamic instantiation of GoogleGenAI as per Gemini guidelines
+      console.info("[ORION] Initiating Optimization Request...");
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const model = 'gemini-3-pro-preview';
       const langInstruction = language === 'pt-BR' 
-          ? "OUTPUT LANGUAGE: PORTUGUESE (BRAZIL). Critique and optimizedPrompt fields MUST be in Portuguese."
+          ? "OUTPUT LANGUAGE: PORTUGUESE (BRAZIL). The 'critique' and 'optimizedPrompt' fields MUST be in Portuguese."
           : "OUTPUT LANGUAGE: ENGLISH.";
 
       const response = await ai.models.generateContent({
         model,
-        contents: inputPrompt,
+        contents: [{ parts: [{ text: inputPrompt }] }],
         config: {
-            systemInstruction: `You are ORION, a Senior Prompt Architect. Reconstruct user input into high-fidelity prompt engineering specifications. ${langInstruction}`,
+            systemInstruction: `You are ORION, a Senior Prompt Architect. Reconstruct user input into high-fidelity prompt engineering specifications. Analyze flaws and generate a superior version using professional techniques (Chain-of-Thought, Few-Shot, etc.). ${langInstruction}`,
             responseMimeType: "application/json",
             responseSchema: analysisSchema,
             temperature: 0.7,
@@ -68,7 +81,12 @@ export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'e
         },
       });
 
-      const result = JSON.parse(response.text || "{}");
+      if (!response.text) {
+        throw new Error("EMPTY_RESPONSE|The model failed to generate a response text.");
+      }
+
+      const result = cleanJSONResponse(response.text);
+      console.info("[ORION] Optimization Success.");
       
       return {
         originalText: inputPrompt,
@@ -88,7 +106,7 @@ export const generatePreview = async (prompt: string): Promise<string> => {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: prompt,
+            contents: [{ parts: [{ text: prompt }] }],
         });
         return response.text || "No output generated.";
     } catch (error) {
@@ -101,14 +119,14 @@ export const evaluatePerformance = async (prompt: string, config: ModelConfig, l
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const genResponse = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: prompt,
+            contents: [{ parts: [{ text: prompt }] }],
             config: { temperature: config.temperature, topP: config.topP, topK: config.topK }
         });
         const generatedText = genResponse.text || "No response.";
 
         const judgeResponse = await ai.models.generateContent({
             model: 'gemini-3-pro-preview',
-            contents: `Analyze technical quality: ${generatedText}`,
+            contents: [{ parts: [{ text: `Analyze technical quality and bias of this generated content: ${generatedText}` }] }],
             config: {
                 systemInstruction: "You are an AI QA Auditor. Return JSON: {qualityScore: int, biasDetected: bool, biasAnalysis: string, tone: string}",
                 responseMimeType: "application/json",
@@ -117,7 +135,7 @@ export const evaluatePerformance = async (prompt: string, config: ModelConfig, l
             }
         });
 
-        const analysis = JSON.parse(judgeResponse.text || "{}");
+        const analysis = cleanJSONResponse(judgeResponse.text || "{}");
         return {
             generatedResponse: generatedText,
             responseLength: generatedText.length,
