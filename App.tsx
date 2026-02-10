@@ -5,11 +5,6 @@ import { PromptAnalysis, HistoryItem } from './types.ts';
 import { CyberButton, CyberPanel, SectionHeader, CyberAlert, CyberModal } from './components/CyberComponents.tsx';
 import { AnalysisView } from './components/AnalysisView.tsx';
 
-const SAMPLES = {
-  en: "Write a short story about a robot who discovers music. [TONE: Emotional] [LENGTH: Short]",
-  'pt-BR': "Escreva uma história curta sobre um robô que descobre a música. [TOM: Emocional] [TAMANHO: Curto]"
-};
-
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [inputPrompt, setInputPrompt] = useState<string>('');
@@ -17,27 +12,36 @@ const App: React.FC = () => {
   const [analysis, setAnalysis] = useState<PromptAnalysis | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [language, setLanguage] = useState<'pt-BR' | 'en'>('en');
+  const [language, setLanguage] = useState<'pt-BR' | 'en'>('pt-BR');
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [isKernelLive, setIsKernelLive] = useState<boolean | null>(null);
+  const [kernelStatus, setKernelStatus] = useState<'CONNECTING' | 'ONLINE' | 'OFFLINE'>('CONNECTING');
   
   const editorRef = useRef<HTMLTextAreaElement>(null);
 
-  // Check for API key and connectivity on mount
-  useEffect(() => {
-    const init = async () => {
-      if (typeof window !== 'undefined' && (window as any).aistudio) {
+  const initKernel = async () => {
+    console.log("[ORION_SYS]: Sequência de boot iniciada...");
+    if (typeof window !== 'undefined' && (window as any).aistudio) {
+      try {
         const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+        console.log("[ORION_SYS]: Chave detectada?", hasKey);
         setIsAuthenticated(hasKey);
         
         if (hasKey) {
           const alive = await checkConnection();
-          setIsKernelLive(alive);
+          setKernelStatus(alive ? 'ONLINE' : 'OFFLINE');
+        } else {
+          setKernelStatus('OFFLINE');
         }
+      } catch (e) {
+        console.error("[ORION_SYS]: Erro crítico no boot:", e);
+        setKernelStatus('OFFLINE');
       }
-    };
-    init();
+    }
+  };
+
+  useEffect(() => {
+    initKernel();
   }, []);
 
   const detectedVars = useMemo(() => {
@@ -59,6 +63,7 @@ const App: React.FC = () => {
   }, [detectedVars]);
 
   const handleOptimize = async () => {
+    console.log("[ORION_UI]: Comando de otimização disparado.");
     if (!inputPrompt.trim()) return;
     if (loading) return;
     
@@ -68,39 +73,24 @@ const App: React.FC = () => {
     try {
       const result = await optimizePrompt(inputPrompt, language);
       if (result) {
+        console.log("[ORION_UI]: Otimização recebida, atualizando view.");
         setAnalysis(result);
         const newItem: HistoryItem = {
           id: Date.now().toString(),
           timestamp: Date.now(),
-          originalPreview: result.originalText.substring(0, 40) + (result.originalText.length > 40 ? '...' : ''),
-          optimizedPreview: result.optimizedPrompt.substring(0, 40) + (result.optimizedPrompt.length > 40 ? '...' : ''),
+          originalPreview: result.originalText.substring(0, 40) + "...",
+          optimizedPreview: result.optimizedPrompt.substring(0, 40) + "...",
           score: result.score,
           fullAnalysis: result
         };
-        setHistory(prev => [newItem, ...prev].slice(0, 20));
+        setHistory(prev => [newItem, ...prev]);
       }
     } catch (err: any) {
-      const parts = (err.message || "NEURAL_LINK_FAILURE|Unexpected disconnection").split('|');
-      const message = parts.length > 1 ? parts[1] : parts[0];
-      setError(message);
-      
-      if (err.message?.includes("AUTH_FAILURE") || err.message?.includes("API key")) {
-        setIsAuthenticated(false);
-      }
+      const parts = err.message.split('|');
+      setError(parts[1] || parts[0]);
+      if (err.message.includes("AUTH_FAILURE")) setIsAuthenticated(false);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadSample = () => {
-    setInputPrompt(SAMPLES[language]);
-    if (editorRef.current) editorRef.current.focus();
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-      e.preventDefault();
-      handleOptimize();
     }
   };
 
@@ -108,38 +98,29 @@ const App: React.FC = () => {
     if ((window as any).aistudio) {
       await (window as any).aistudio.openSelectKey();
       setIsAuthenticated(true);
-      const alive = await checkConnection();
-      setIsKernelLive(alive);
+      initKernel();
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-[#e0e0e0] font-mono-tech selection:bg-[#39ff14] selection:text-black">
+    <div className="min-h-screen bg-[#050505] text-[#e0e0e0] font-mono-tech">
       <div className="fixed inset-0 bg-grid-pattern opacity-10 pointer-events-none"></div>
       
-      <header className="relative z-10 border-b border-[#7b2cbf]/30 bg-black/80 p-4 sticky top-0 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-[#39ff14] clip-path-polygon flex items-center justify-center text-black font-bold shadow-[0_0_10px_#39ff14]">O</div>
-            <div>
-              <h1 className="text-lg font-header tracking-tighter text-white">ORION_IDE</h1>
-              <span className="text-[8px] text-[#7b2cbf] block -mt-1 uppercase tracking-widest">Neural Prompt Engineering</span>
-            </div>
-          </div>
-          
-          <div className="flex gap-4 items-center">
-             <select 
-               value={language} 
-               onChange={e => setLanguage(e.target.value as any)} 
-               className="bg-black border border-[#7b2cbf]/50 text-[#39ff14] px-2 py-1 text-[10px] outline-none hover:border-[#39ff14] transition-colors"
-             >
-               <option value="en">ENG_US</option>
-               <option value="pt-BR">POR_BR</option>
-             </select>
-             <button onClick={() => setShowHistory(true)} className="text-[10px] text-[#7b2cbf] hover:text-[#39ff14] transition-colors font-header">
-               [HISTÓRICO]
-             </button>
-          </div>
+      <header className="relative z-10 border-b border-[#7b2cbf]/30 bg-black/80 p-4 sticky top-0 backdrop-blur-md flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-[#39ff14] clip-path-polygon flex items-center justify-center text-black font-bold shadow-[0_0_10px_#39ff14]">O</div>
+          <h1 className="text-lg font-header tracking-tighter text-white">ORION_IDE</h1>
+        </div>
+        
+        <div className="flex gap-4 items-center">
+           <div className="flex items-center gap-2 px-3 py-1 border border-[#7b2cbf]/30 bg-black/40">
+             <div className={`w-2 h-2 rounded-full ${kernelStatus === 'ONLINE' ? 'bg-[#39ff14] animate-pulse' : kernelStatus === 'CONNECTING' ? 'bg-yellow-500' : 'bg-red-600'}`}></div>
+             <span className="text-[10px] text-gray-400 uppercase tracking-widest">{kernelStatus}</span>
+           </div>
+           <select value={language} onChange={e => setLanguage(e.target.value as any)} className="bg-black border border-[#7b2cbf]/50 text-[#39ff14] px-2 py-1 text-[10px]">
+             <option value="pt-BR">POR_BR</option>
+             <option value="en">ENG_US</option>
+           </select>
         </div>
       </header>
 
@@ -147,147 +128,72 @@ const App: React.FC = () => {
         {error && <CyberAlert title="KERNEL_REPORT" message={error} onClose={() => setError(null)} />}
 
         {analysis ? (
-          <AnalysisView 
-            analysis={analysis} 
-            language={language} 
-            variables={variables}
-            onBack={() => setAnalysis(null)} 
-          />
+          <AnalysisView analysis={analysis} language={language} variables={variables} onBack={() => setAnalysis(null)} />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-8 space-y-6">
+            <div className="lg:col-span-8">
               <CyberPanel title="NEURAL_EDITOR">
-                <div className="relative group">
+                <div className="relative">
                   <textarea 
                     ref={editorRef}
                     value={inputPrompt}
                     onChange={e => setInputPrompt(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={language === 'en' ? "Describe your intent... use [VARIABLES] to map inputs." : "Descreva sua intenção... use [VARIAVEIS] para mapear entradas."}
-                    className="w-full h-[500px] bg-black/20 border-none outline-none resize-none p-4 text-[#39ff14] text-lg placeholder-[#39ff14]/10 custom-scrollbar font-mono-tech transition-all focus:bg-black/40"
+                    placeholder="Cole seu prompt aqui para iniciar a reconstrução neural..."
+                    className="w-full h-[500px] bg-black/20 border-none outline-none resize-none p-4 text-[#39ff14] text-lg font-mono-tech custom-scrollbar"
                   />
                   {loading && (
-                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center z-20">
-                      <div className="w-16 h-16 border-4 border-t-[#39ff14] border-transparent rounded-full animate-spin mb-4"></div>
-                      <p className="text-[#39ff14] font-header text-sm tracking-widest animate-pulse">INITIATING_ENGINE_SCAN...</p>
-                      <p className="text-gray-500 text-[10px] mt-2 font-mono-tech">Consulting Gemini 3 Pro (Project Orion)</p>
+                    <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-20">
+                      <div className="w-16 h-16 border-4 border-t-[#39ff14] border-transparent rounded-full animate-spin"></div>
+                      <p className="text-[#39ff14] text-xs mt-4 animate-pulse uppercase tracking-[0.3em]">Processando...</p>
                     </div>
                   )}
-                  <div className="absolute bottom-4 left-4 flex gap-2">
-                    <button 
-                      onClick={loadSample}
-                      className="bg-[#7b2cbf]/20 border border-[#7b2cbf]/40 px-3 py-1 text-[10px] text-[#7b2cbf] hover:bg-[#7b2cbf] hover:text-white transition-all uppercase tracking-tighter"
-                    >
-                      [LOAD_SAMPLE]
-                    </button>
-                  </div>
-                  <div className="absolute bottom-4 right-4 text-[8px] text-gray-700 font-mono-tech uppercase pointer-events-none">
-                    Kernel_Ready // Chars: {inputPrompt.length}
-                  </div>
                 </div>
-                <div className="mt-4 flex justify-between items-center border-t border-[#7b2cbf]/20 pt-4">
-                  <div className="flex flex-col">
-                    <div className="text-[10px] text-gray-500 font-mono-tech uppercase">
-                      {detectedVars.length > 0 ? `VARS_DETECTED: ${detectedVars.join(', ')}` : 'READY_FOR_INPUT'}
-                    </div>
-                    <div className="text-[8px] text-[#7b2cbf] font-mono-tech mt-1 animate-pulse">
-                      SHORTCUT: <span className="text-gray-400 font-bold">[CTRL + ENTER]</span>
-                    </div>
+                <div className="mt-4 flex justify-between items-center pt-4 border-t border-[#7b2cbf]/20">
+                  <div className="text-[10px] text-gray-500 uppercase">
+                    {detectedVars.length > 0 ? `Variáveis: ${detectedVars.join(', ')}` : 'Aguardando Input'}
                   </div>
-                  <CyberButton onClick={handleOptimize} isLoading={loading} disabled={!inputPrompt.trim() || loading}>
-                    {loading ? "PROCESSING..." : "RUN_OPTIMIZATION"}
+                  <CyberButton onClick={handleOptimize} isLoading={loading} disabled={!inputPrompt.trim()}>
+                    OTIMIZAR_PROMPT
                   </CyberButton>
                 </div>
               </CyberPanel>
             </div>
 
             <div className="lg:col-span-4 space-y-6">
-              <SectionHeader title="VARIABLES" subtitle="Injection Mapping" />
+              <SectionHeader title="VARIÁVEIS" subtitle="Mapeamento Dinâmico" />
               <CyberPanel className="min-h-[200px]">
-                {detectedVars.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <p className="text-gray-600 text-[10px] italic">
-                      {language === 'en' ? "Use brackets [LIKE_THIS] to create inputs." : "Use colchetes [ASSIM] para criar campos."}
-                    </p>
+                {detectedVars.map(v => (
+                  <div key={v} className="mb-4">
+                    <label className="text-[9px] text-[#7b2cbf] font-bold block mb-1">{v}</label>
+                    <input 
+                      type="text" 
+                      value={variables[v] || ''} 
+                      onChange={e => setVariables(prev => ({...prev, [v]: e.target.value}))}
+                      className="w-full bg-black/40 border border-[#7b2cbf]/30 p-2 text-xs text-[#39ff14] outline-none"
+                    />
                   </div>
-                ) : (
-                  <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                    {detectedVars.map(v => (
-                      <div key={v} className="space-y-1">
-                        <label className="text-[9px] text-[#7b2cbf] uppercase font-bold tracking-widest">{v}</label>
-                        <input 
-                          type="text" 
-                          value={variables[v] || ''}
-                          onChange={e => setVariables(prev => ({...prev, [v]: e.target.value}))}
-                          className="w-full bg-black/40 border border-[#7b2cbf]/30 p-2 text-xs text-[#39ff14] outline-none focus:border-[#39ff14] transition-all"
-                          placeholder={`Value for ${v}...`}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
+                ))}
+                {detectedVars.length === 0 && <p className="text-gray-600 text-[10px] text-center italic">Use [COLCHETES] para criar variáveis.</p>}
               </CyberPanel>
-
-              <SectionHeader title="SYSTEM" subtitle="Connectivity" />
-              <div className="grid grid-cols-2 gap-2 font-mono-tech">
-                 <div className="bg-black/40 border border-[#7b2cbf]/20 p-2 text-center">
-                    <span className="text-[8px] text-gray-500 block uppercase">Signal</span>
-                    <span className={isKernelLive === true ? "text-[#39ff14] text-xs" : isKernelLive === false ? "text-red-500 text-xs" : "text-gray-500 text-xs"}>
-                      {isKernelLive === true ? "ESTABLISHED" : isKernelLive === false ? "DISRUPTED" : "CONNECTING..."}
-                    </span>
-                 </div>
-                 <div className="bg-black/40 border border-[#7b2cbf]/20 p-2 text-center">
-                    <span className="text-[8px] text-gray-500 block uppercase">Engine</span>
-                    <span className="text-[#39ff14] text-xs">GEMINI-3</span>
-                 </div>
+              
+              <div className="p-4 border border-red-500/20 bg-red-500/5">
+                <h4 className="text-red-500 text-[10px] font-bold mb-2">DEBUG_CONSOLE</h4>
+                <p className="text-[9px] text-gray-500 leading-tight">
+                  Se o botão não responder, abra o console (F12) e procure por [ORION_LOG]. 
+                  Certifique-se de ter selecionado uma chave de API com faturamento ativo.
+                </p>
               </div>
             </div>
           </div>
         )}
       </main>
 
-      <CyberModal isOpen={showHistory} onClose={() => setShowHistory(false)} title="OPTIMIZATION_LOGS">
-        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-          {history.length === 0 ? (
-            <p className="text-center text-gray-600 py-8 text-xs italic">Neural buffer empty.</p>
-          ) : history.map(item => (
-            <div key={item.id} onClick={() => { setAnalysis(item.fullAnalysis); setShowHistory(false); }} className="bg-black/60 border border-[#7b2cbf]/30 p-3 hover:border-[#39ff14] cursor-pointer flex justify-between items-center group transition-all">
-              <div className="overflow-hidden">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[8px] text-[#39ff14] font-bold">EFF_{item.score}%</span>
-                  <span className="text-[8px] text-gray-500">[{new Date(item.timestamp).toLocaleTimeString()}]</span>
-                </div>
-                <p className="text-[10px] text-gray-400 italic truncate">{item.originalPreview}</p>
-              </div>
-              <span className="text-[#7b2cbf] text-[10px] group-hover:text-[#39ff14]">>></span>
-            </div>
-          ))}
-        </div>
-      </CyberModal>
-      
       {!isAuthenticated && (
-        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6">
-           <CyberPanel title="NEURAL_AUTH_REQUIRED" className="max-w-md w-full">
-              <div className="text-center py-8">
-                 <h2 className="text-[#39ff14] font-header text-xl mb-4 tracking-tighter">ACCESS_DENIED</h2>
-                 <p className="text-gray-400 text-xs mb-8 leading-relaxed">
-                    The Orion Interface requires an authorized Gemini API Key. 
-                    Gemini 3 Pro models are restricted to projects with billing enabled.
-                 </p>
-                 <CyberButton onClick={handleOpenKeySelector}>
-                    SELECT_API_KEY
-                 </CyberButton>
-                 <div className="mt-6">
-                    <a 
-                      href="https://ai.google.dev/gemini-api/docs/billing" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-[10px] text-[#7b2cbf] hover:text-[#39ff14] underline underline-offset-4"
-                    >
-                      Documentation: Billing Setup
-                    </a>
-                 </div>
-              </div>
+        <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-6">
+           <CyberPanel title="AUTENTICAÇÃO_NECESSÁRIA" className="max-w-md w-full text-center">
+              <h2 className="text-[#39ff14] font-header text-xl mb-4">ACESSO_RESTRITO</h2>
+              <p className="text-gray-400 text-xs mb-8">O Gemini 3 Pro exige uma chave de API vinculada a um projeto faturável no Google AI Studio.</p>
+              <CyberButton onClick={handleOpenKeySelector}>VINCULAR_API_KEY</CyberButton>
            </CyberPanel>
         </div>
       )}
