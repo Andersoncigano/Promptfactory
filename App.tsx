@@ -1,9 +1,14 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { optimizePrompt } from './services/geminiService.ts';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { optimizePrompt, checkConnection } from './services/geminiService.ts';
 import { PromptAnalysis, HistoryItem } from './types.ts';
 import { CyberButton, CyberPanel, SectionHeader, CyberAlert, CyberModal } from './components/CyberComponents.tsx';
 import { AnalysisView } from './components/AnalysisView.tsx';
+
+const SAMPLES = {
+  en: "Write a short story about a robot who discovers music. [TONE: Emotional] [LENGTH: Short]",
+  'pt-BR': "Escreva uma história curta sobre um robô que descobre a música. [TOM: Emocional] [TAMANHO: Curto]"
+};
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
@@ -15,16 +20,24 @@ const App: React.FC = () => {
   const [language, setLanguage] = useState<'pt-BR' | 'en'>('en');
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [isKernelLive, setIsKernelLive] = useState<boolean | null>(null);
+  
+  const editorRef = useRef<HTMLTextAreaElement>(null);
 
-  // Check for API key on mount
+  // Check for API key and connectivity on mount
   useEffect(() => {
-    const checkKey = async () => {
+    const init = async () => {
       if (typeof window !== 'undefined' && (window as any).aistudio) {
         const hasKey = await (window as any).aistudio.hasSelectedApiKey();
         setIsAuthenticated(hasKey);
+        
+        if (hasKey) {
+          const alive = await checkConnection();
+          setIsKernelLive(alive);
+        }
       }
     };
-    checkKey();
+    init();
   }, []);
 
   const detectedVars = useMemo(() => {
@@ -67,8 +80,9 @@ const App: React.FC = () => {
         setHistory(prev => [newItem, ...prev].slice(0, 20));
       }
     } catch (err: any) {
-      const [title, message] = (err.message || "NEURAL_LINK_FAILURE|Unexpected disconnection").split('|');
-      setError(message || title);
+      const parts = (err.message || "NEURAL_LINK_FAILURE|Unexpected disconnection").split('|');
+      const message = parts.length > 1 ? parts[1] : parts[0];
+      setError(message);
       
       if (err.message?.includes("AUTH_FAILURE") || err.message?.includes("API key")) {
         setIsAuthenticated(false);
@@ -76,6 +90,11 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadSample = () => {
+    setInputPrompt(SAMPLES[language]);
+    if (editorRef.current) editorRef.current.focus();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -89,8 +108,8 @@ const App: React.FC = () => {
     if ((window as any).aistudio) {
       await (window as any).aistudio.openSelectKey();
       setIsAuthenticated(true);
-      // Wait for re-initialization might be needed in some contexts, 
-      // but per rules we assume it's valid now.
+      const alive = await checkConnection();
+      setIsKernelLive(alive);
     }
   };
 
@@ -140,19 +159,28 @@ const App: React.FC = () => {
               <CyberPanel title="NEURAL_EDITOR">
                 <div className="relative group">
                   <textarea 
+                    ref={editorRef}
                     value={inputPrompt}
                     onChange={e => setInputPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Enter prompt template... use [VARIABLES] to map inputs."
+                    placeholder={language === 'en' ? "Describe your intent... use [VARIABLES] to map inputs." : "Descreva sua intenção... use [VARIAVEIS] para mapear entradas."}
                     className="w-full h-[500px] bg-black/20 border-none outline-none resize-none p-4 text-[#39ff14] text-lg placeholder-[#39ff14]/10 custom-scrollbar font-mono-tech transition-all focus:bg-black/40"
                   />
                   {loading && (
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-20">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center z-20">
                       <div className="w-16 h-16 border-4 border-t-[#39ff14] border-transparent rounded-full animate-spin mb-4"></div>
                       <p className="text-[#39ff14] font-header text-sm tracking-widest animate-pulse">INITIATING_ENGINE_SCAN...</p>
-                      <p className="text-gray-500 text-[10px] mt-2 font-mono-tech">Accessing Gemini 3 Pro reasoning core</p>
+                      <p className="text-gray-500 text-[10px] mt-2 font-mono-tech">Consulting Gemini 3 Pro (Project Orion)</p>
                     </div>
                   )}
+                  <div className="absolute bottom-4 left-4 flex gap-2">
+                    <button 
+                      onClick={loadSample}
+                      className="bg-[#7b2cbf]/20 border border-[#7b2cbf]/40 px-3 py-1 text-[10px] text-[#7b2cbf] hover:bg-[#7b2cbf] hover:text-white transition-all uppercase tracking-tighter"
+                    >
+                      [LOAD_SAMPLE]
+                    </button>
+                  </div>
                   <div className="absolute bottom-4 right-4 text-[8px] text-gray-700 font-mono-tech uppercase pointer-events-none">
                     Kernel_Ready // Chars: {inputPrompt.length}
                   </div>
@@ -163,11 +191,11 @@ const App: React.FC = () => {
                       {detectedVars.length > 0 ? `VARS_DETECTED: ${detectedVars.join(', ')}` : 'READY_FOR_INPUT'}
                     </div>
                     <div className="text-[8px] text-[#7b2cbf] font-mono-tech mt-1 animate-pulse">
-                      SHORTCUT: <span className="text-gray-400 font-bold">[CTRL + ENTER]</span> TO EXECUTE
+                      SHORTCUT: <span className="text-gray-400 font-bold">[CTRL + ENTER]</span>
                     </div>
                   </div>
                   <CyberButton onClick={handleOptimize} isLoading={loading} disabled={!inputPrompt.trim() || loading}>
-                    {loading ? "PROCESSING..." : "INIT_ENGINE_SCAN"}
+                    {loading ? "PROCESSING..." : "RUN_OPTIMIZATION"}
                   </CyberButton>
                 </div>
               </CyberPanel>
@@ -179,7 +207,7 @@ const App: React.FC = () => {
                 {detectedVars.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <p className="text-gray-600 text-[10px] italic">
-                      Use brackets [LIKE_THIS] in the editor to map test fields.
+                      {language === 'en' ? "Use brackets [LIKE_THIS] to create inputs." : "Use colchetes [ASSIM] para criar campos."}
                     </p>
                   </div>
                 ) : (
@@ -200,15 +228,17 @@ const App: React.FC = () => {
                 )}
               </CyberPanel>
 
-              <SectionHeader title="SYSTEM" subtitle="Kernel Status" />
+              <SectionHeader title="SYSTEM" subtitle="Connectivity" />
               <div className="grid grid-cols-2 gap-2 font-mono-tech">
                  <div className="bg-black/40 border border-[#7b2cbf]/20 p-2 text-center">
-                    <span className="text-[8px] text-gray-500 block uppercase">Latency</span>
-                    <span className="text-[#39ff14] text-xs">Stable</span>
+                    <span className="text-[8px] text-gray-500 block uppercase">Signal</span>
+                    <span className={isKernelLive === true ? "text-[#39ff14] text-xs" : isKernelLive === false ? "text-red-500 text-xs" : "text-gray-500 text-xs"}>
+                      {isKernelLive === true ? "ESTABLISHED" : isKernelLive === false ? "DISRUPTED" : "CONNECTING..."}
+                    </span>
                  </div>
                  <div className="bg-black/40 border border-[#7b2cbf]/20 p-2 text-center">
-                    <span className="text-[8px] text-gray-500 block uppercase">Core</span>
-                    <span className="text-[#39ff14] text-xs">G-PRO-3</span>
+                    <span className="text-[8px] text-gray-500 block uppercase">Engine</span>
+                    <span className="text-[#39ff14] text-xs">GEMINI-3</span>
                  </div>
               </div>
             </div>
@@ -219,7 +249,7 @@ const App: React.FC = () => {
       <CyberModal isOpen={showHistory} onClose={() => setShowHistory(false)} title="OPTIMIZATION_LOGS">
         <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
           {history.length === 0 ? (
-            <p className="text-center text-gray-600 py-8 text-xs italic">No logs found in neural buffer.</p>
+            <p className="text-center text-gray-600 py-8 text-xs italic">Neural buffer empty.</p>
           ) : history.map(item => (
             <div key={item.id} onClick={() => { setAnalysis(item.fullAnalysis); setShowHistory(false); }} className="bg-black/60 border border-[#7b2cbf]/30 p-3 hover:border-[#39ff14] cursor-pointer flex justify-between items-center group transition-all">
               <div className="overflow-hidden">
@@ -237,12 +267,12 @@ const App: React.FC = () => {
       
       {!isAuthenticated && (
         <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6">
-           <CyberPanel title="CREDENTIAL_FAILURE" className="max-w-md w-full">
+           <CyberPanel title="NEURAL_AUTH_REQUIRED" className="max-w-md w-full">
               <div className="text-center py-8">
-                 <h2 className="text-[#39ff14] font-header text-xl mb-4">ACCESS_DENIED</h2>
+                 <h2 className="text-[#39ff14] font-header text-xl mb-4 tracking-tighter">ACCESS_DENIED</h2>
                  <p className="text-gray-400 text-xs mb-8 leading-relaxed">
-                    The Orion Core detected that no API key has been selected or authorized. 
-                    A billing-enabled API key from Google AI Studio is required to access Gemini 3 Pro capabilities.
+                    The Orion Interface requires an authorized Gemini API Key. 
+                    Gemini 3 Pro models are restricted to projects with billing enabled.
                  </p>
                  <CyberButton onClick={handleOpenKeySelector}>
                     SELECT_API_KEY

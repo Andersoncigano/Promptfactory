@@ -11,15 +11,15 @@ const handleGenAIError = (error: any): never => {
 
     const errorMsg = message.toLowerCase();
     
-    if (errorMsg.includes("requested entity was not found") || errorMsg.includes("401") || errorMsg.includes("api key") || errorMsg.includes("invalid api key")) {
+    if (errorMsg.includes("requested entity was not found") || errorMsg.includes("401") || errorMsg.includes("api key") || errorMsg.includes("invalid api key") || errorMsg.includes("unauthorized")) {
         title = "AUTH_FAILURE";
-        message = "Security handshake failed. A valid project API key with billing enabled is required.";
+        message = "Security handshake failed. A valid project API key with billing enabled is required for Gemini 3 Pro.";
     } else if (errorMsg.includes("429") || errorMsg.includes("quota")) {
         title = "QUOTA_EXCEEDED";
-        message = "Neural bandwidth exhausted. Please wait for cool-down.";
+        message = "Neural bandwidth exhausted. Please wait for the quota to reset.";
     } else if (errorMsg.includes("fetch")) {
         title = "NETWORK_DISRUPTION";
-        message = "Failed to establish a link with the Gemini backbone.";
+        message = "Failed to establish a link with the Gemini backbone. Check your connectivity.";
     }
 
     throw new Error(`${title}|${message}`);
@@ -32,6 +32,13 @@ const cleanJSONResponse = (text: string): any => {
         return JSON.parse(cleaned);
     } catch (e) {
         console.error("[JSON_PARSE_ERROR]: Failed to parse model output:", text);
+        // Fallback for non-JSON or partial JSON
+        const match = text.match(/\{[\s\S]*\}/);
+        if (match) {
+            try {
+                return JSON.parse(match[0]);
+            } catch { /* ignore */ }
+        }
         throw new Error("PARSING_ERROR|The neural core returned a corrupted data stream.");
     }
 };
@@ -60,23 +67,41 @@ const analysisSchema = {
   required: ["critique", "optimizedPrompt", "techniquesUsed", "grammarIssues", "score"],
 };
 
+export const checkConnection = async (): Promise<boolean> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [{ parts: [{ text: 'ping' }] }],
+      config: { maxOutputTokens: 1 }
+    });
+    return true;
+  } catch (e) {
+    console.warn("[ORION] Connection check failed.");
+    return false;
+  }
+};
+
 export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'en'): Promise<PromptAnalysis> => {
   try {
-      console.info("[ORION] Initiating Optimization Request...");
+      console.info("[ORION] Initiating Optimization Request for model: gemini-3-pro-preview");
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const model = 'gemini-3-pro-preview';
       const langInstruction = language === 'pt-BR' 
-          ? "OUTPUT LANGUAGE: PORTUGUESE (BRAZIL). The 'critique' and 'optimizedPrompt' fields MUST be in Portuguese."
-          : "OUTPUT LANGUAGE: ENGLISH.";
+          ? "Você deve responder INTEIRAMENTE em PORTUGUÊS (BRASIL). Os campos 'critique' e 'optimizedPrompt' DEVEM estar em português."
+          : "You must respond entirely in ENGLISH.";
 
       const response = await ai.models.generateContent({
         model,
-        contents: [{ parts: [{ text: inputPrompt }] }],
+        contents: [{ parts: [{ text: `Original Prompt to Optimize: ${inputPrompt}` }] }],
         config: {
-            systemInstruction: `You are ORION, a Senior Prompt Architect. Reconstruct user input into high-fidelity prompt engineering specifications. Analyze flaws and generate a superior version using professional techniques (Chain-of-Thought, Few-Shot, etc.). ${langInstruction}`,
+            systemInstruction: `You are ORION, a world-class Senior Prompt Architect. Your mission is to reconstruct user inputs into high-fidelity prompt engineering specifications. 
+            Analyze flaws (ambiguity, lack of context, missing constraints) and generate a significantly superior version using techniques like Chain-of-Thought, Variable placeholders, and Persona adoption.
+            ${langInstruction}
+            Output the result in the specified JSON schema.`,
             responseMimeType: "application/json",
             responseSchema: analysisSchema,
-            temperature: 0.7,
+            temperature: 0.8,
             thinkingConfig: { thinkingBudget: 16384 }
         },
       });
@@ -109,41 +134,6 @@ export const generatePreview = async (prompt: string): Promise<string> => {
             contents: [{ parts: [{ text: prompt }] }],
         });
         return response.text || "No output generated.";
-    } catch (error) {
-        handleGenAIError(error);
-    }
-}
-
-export const evaluatePerformance = async (prompt: string, config: ModelConfig, language: 'pt-BR' | 'en'): Promise<PerformanceMetrics> => {
-    try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const genResponse = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: [{ parts: [{ text: prompt }] }],
-            config: { temperature: config.temperature, topP: config.topP, topK: config.topK }
-        });
-        const generatedText = genResponse.text || "No response.";
-
-        const judgeResponse = await ai.models.generateContent({
-            model: 'gemini-3-pro-preview',
-            contents: [{ parts: [{ text: `Analyze technical quality and bias of this generated content: ${generatedText}` }] }],
-            config: {
-                systemInstruction: "You are an AI QA Auditor. Return JSON: {qualityScore: int, biasDetected: bool, biasAnalysis: string, tone: string}",
-                responseMimeType: "application/json",
-                temperature: 0.1,
-                thinkingConfig: { thinkingBudget: 8192 }
-            }
-        });
-
-        const analysis = cleanJSONResponse(judgeResponse.text || "{}");
-        return {
-            generatedResponse: generatedText,
-            responseLength: generatedText.length,
-            qualityScore: analysis.qualityScore,
-            biasDetected: analysis.biasDetected,
-            biasAnalysis: analysis.biasAnalysis,
-            tone: analysis.tone
-        };
     } catch (error) {
         handleGenAIError(error);
     }
