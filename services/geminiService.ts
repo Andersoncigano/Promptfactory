@@ -3,19 +3,22 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { PromptAnalysis, ModelConfig, PerformanceMetrics } from "../types.ts";
 
 const handleGenAIError = (error: any): never => {
-    console.error("[ORION_LOG]: Falha crítica detectada no motor Gemini:", error);
+    console.error("[ORION_LOG]: Falha detectada no motor neural:", error);
     
     let title = "SYSTEM_ERROR";
     let message = error.message || "Malfuncionamento inesperado no núcleo neural.";
 
     const errorMsg = message.toLowerCase();
     
-    if (errorMsg.includes("not found") || errorMsg.includes("401") || errorMsg.includes("api key") || errorMsg.includes("unauthorized") || errorMsg.includes("billing")) {
+    if (errorMsg.includes("401") || errorMsg.includes("api key") || errorMsg.includes("unauthorized") || errorMsg.includes("invalid")) {
         title = "AUTH_FAILURE";
-        message = "Falha no aperto de mão de segurança. Uma API Key paga (Gemini 3 Pro) é obrigatória.";
+        message = "Chave de API inválida ou expirada. Realize uma nova autenticação.";
     } else if (errorMsg.includes("429") || errorMsg.includes("quota")) {
         title = "QUOTA_EXCEEDED";
-        message = "Largura de banda neural esgotada. Aguarde o resfriamento do sistema.";
+        message = "Limite de requisições atingido para sua chave gratuita. Aguarde alguns instantes.";
+    } else if (errorMsg.includes("not found")) {
+        title = "MODEL_ERROR";
+        message = "O modelo solicitado não está disponível para esta chave de API.";
     }
 
     throw new Error(`${title}|${message}`);
@@ -30,7 +33,7 @@ const cleanJSONResponse = (text: string): any => {
         if (match) {
             try { return JSON.parse(match[0]); } catch { /* ignore */ }
         }
-        throw new Error("PARSING_ERROR|O fluxo de dados retornado está corrompido.");
+        throw new Error("PARSING_ERROR|Fluxo de dados corrompido. Tente novamente.");
     }
 };
 
@@ -66,7 +69,6 @@ export const checkConnection = async (): Promise<boolean> => {
       contents: [{ parts: [{ text: 'ping' }] }],
       config: { maxOutputTokens: 1 }
     });
-    console.log("[ORION_LOG]: Conexão com Flash estabelecida.");
     return true;
   } catch (e) {
     console.error("[ORION_LOG]: Falha no ping inicial.");
@@ -76,7 +78,7 @@ export const checkConnection = async (): Promise<boolean> => {
 
 export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'en'): Promise<PromptAnalysis> => {
   try {
-      console.info("[ORION_LOG]: Iniciando otimização com Gemini 3 Pro...");
+      console.info("[ORION_LOG]: Iniciando otimização com Gemini 3 Flash (Free Tier)...");
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
       const langInstruction = language === 'pt-BR' 
@@ -84,21 +86,22 @@ export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'e
           : "Respond in ENGLISH.";
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: [{ parts: [{ text: `Otimize este prompt: ${inputPrompt}` }] }],
+        // Trocado para Flash para permitir uso gratuito
+        model: 'gemini-3-flash-preview',
+        contents: [{ parts: [{ text: `Otimize e reconstrua este prompt para máxima eficiência: ${inputPrompt}` }] }],
         config: {
-            systemInstruction: `Você é ORION, Arquiteto de Prompts Sênior. Sua tarefa é transformar inputs em especificações de alta fidelidade. ${langInstruction}`,
+            systemInstruction: `Você é ORION, Arquiteto de Prompts Sênior. Sua tarefa é transformar inputs em especificações de alta fidelidade usando técnicas avançadas. ${langInstruction}`,
             responseMimeType: "application/json",
             responseSchema: analysisSchema,
             temperature: 0.7,
-            thinkingConfig: { thinkingBudget: 8192 } // Reduzido para maior compatibilidade inicial
+            thinkingConfig: { thinkingBudget: 4096 } // Budget reduzido para maior velocidade em contas gratuitas
         },
       });
 
-      if (!response.text) throw new Error("EMPTY_RESPONSE|O modelo não gerou saída.");
+      if (!response.text) throw new Error("EMPTY_RESPONSE|O motor neural não gerou saída.");
 
       const result = cleanJSONResponse(response.text);
-      console.info("[ORION_LOG]: Otimização concluída com sucesso.");
+      console.info("[ORION_LOG]: Otimização concluída.");
       
       return {
         originalText: inputPrompt,
