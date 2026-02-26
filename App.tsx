@@ -98,20 +98,10 @@ const App: React.FC = () => {
   };
 
   const handleOpenKeySelector = async () => {
-    console.log("[ORION_SYS]: Solicitando seletor de chaves...");
-    if (typeof window !== 'undefined' && (window as any).aistudio) {
-      try {
-        await (window as any).aistudio.openSelectKey();
-        console.log("[ORION_SYS]: Seletor aberto. Assumindo sucesso...");
-        setIsAuthenticated(true);
-        initKernel(true); 
-      } catch (e) {
-        console.error("[ORION_SYS]: Erro ao abrir seletor:", e);
-        setError("Falha ao abrir o seletor de chaves. Tente recarregar a página.");
-      }
-    } else {
-      console.error("[ORION_SYS]: API do AI Studio não detectada.");
-      setError("Ambiente AI Studio não detectado. Certifique-se de estar usando o preview oficial.");
+    if ((window as any).aistudio) {
+      await (window as any).aistudio.openSelectKey();
+      setIsAuthenticated(true);
+      initKernel(true); 
     }
   };
 
@@ -130,14 +120,6 @@ const App: React.FC = () => {
              <div className={`w-2 h-2 rounded-full ${kernelStatus === 'ONLINE' ? 'bg-[#39ff14] animate-pulse' : kernelStatus === 'CONNECTING' ? 'bg-yellow-500' : 'bg-red-600'}`}></div>
              <span className="text-[10px] text-gray-400 uppercase tracking-widest">{kernelStatus}</span>
            </div>
-           {kernelStatus === 'OFFLINE' && (
-             <button 
-               onClick={() => handleOpenKeySelector()}
-               className="text-[10px] text-[#39ff14] border border-[#39ff14]/30 px-2 py-1 hover:bg-[#39ff14]/10"
-             >
-               RECONECTAR
-             </button>
-           )}
            <select value={language} onChange={e => setLanguage(e.target.value as any)} className="bg-black border border-[#7b2cbf]/50 text-[#39ff14] px-2 py-1 text-[10px]">
              <option value="pt-BR">POR_BR</option>
              <option value="en">ENG_US</option>
@@ -212,21 +194,10 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-6">
            <CyberPanel title="SISTEMA_BLOQUEADO" className="max-w-md w-full text-center">
               <h2 className="text-[#39ff14] font-header text-xl mb-4 tracking-widest">ACESSO_NEGADO</h2>
-              <p className="text-gray-400 text-xs mb-4 uppercase tracking-tighter">
+              <p className="text-gray-400 text-xs mb-8 uppercase tracking-tighter">
                 O Project Orion exige uma chave de API válida para interagir com os modelos Gemini. 
                 Sua chave será armazenada apenas nesta sessão.
               </p>
-              <div className="mb-8 p-3 border border-yellow-500/30 bg-yellow-500/5 text-[10px] text-yellow-500/80 uppercase">
-                Atenção: Use uma chave de um projeto com faturamento ativado.
-                <a 
-                  href="https://ai.google.dev/gemini-api/docs/billing" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="block mt-1 underline hover:text-yellow-400"
-                >
-                  Documentação de Faturamento
-                </a>
-              </div>
               <CyberButton onClick={handleOpenKeySelector}>AUTENTICAR_SISTEMA</CyberButton>
            </CyberPanel>
         </div>

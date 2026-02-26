@@ -65,7 +65,7 @@ export const checkConnection = async (): Promise<boolean> => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     await ai.models.generateContent({
-      model: 'gemini-flash-latest',
+      model: 'gemini-3-flash-preview',
       contents: [{ parts: [{ text: 'ping' }] }],
       config: { maxOutputTokens: 1 }
     });
@@ -86,13 +86,15 @@ export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'e
           : "Respond in ENGLISH.";
 
       const response = await ai.models.generateContent({
-        model: 'gemini-flash-latest',
+        // Trocado para Flash para permitir uso gratuito
+        model: 'gemini-3-flash-preview',
         contents: [{ parts: [{ text: `Otimize e reconstrua este prompt para máxima eficiência: ${inputPrompt}` }] }],
         config: {
             systemInstruction: `Você é ORION, Arquiteto de Prompts Sênior. Sua tarefa é transformar inputs em especificações de alta fidelidade usando técnicas avançadas. ${langInstruction}`,
             responseMimeType: "application/json",
             responseSchema: analysisSchema,
-            temperature: 0.7
+            temperature: 0.7,
+            thinkingConfig: { thinkingBudget: 4096 } // Budget reduzido para maior velocidade em contas gratuitas
         },
       });
 
@@ -118,7 +120,7 @@ export const generatePreview = async (prompt: string): Promise<string> => {
     try {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
-            model: 'gemini-flash-latest',
+            model: 'gemini-3-flash-preview',
             contents: [{ parts: [{ text: prompt }] }],
         });
         return response.text || "Sem saída.";
