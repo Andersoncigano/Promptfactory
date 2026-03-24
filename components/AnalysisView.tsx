@@ -22,10 +22,28 @@ const replaceVariables = (text: string, vars: Record<string, string>) => {
 };
 
 export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis, variables, onBack, language }) => {
-  const [activeTab, setActiveTab] = useState<'optimized' | 'benchmark' | 'code'>('optimized');
+  const [activeTab, setActiveTab] = useState<'optimized' | 'benchmark' | 'code' | 'playground'>('optimized');
   const [benchResults, setBenchResults] = useState<{ original: string; optimized: string } | null>(null);
+  const [playgroundVars, setPlaygroundVars] = useState<Record<string, string>>(variables);
+  const [playgroundResult, setPlaygroundResult] = useState<string | null>(null);
   const [loadingBench, setLoadingBench] = useState(false);
+  const [loadingPlayground, setLoadingPlayground] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const runPlayground = async () => {
+    if (loadingPlayground) return;
+    setLoadingPlayground(true);
+    setError(null);
+    try {
+      const promptWithVars = replaceVariables(analysis.optimizedPrompt, playgroundVars);
+      const result = await generatePreview(promptWithVars);
+      setPlaygroundResult(result);
+    } catch (e: any) {
+      setError(e.message || "PLAYGROUND_ERROR|Neural link unstable.");
+    } finally {
+      setLoadingPlayground(false);
+    }
+  };
 
   const runBenchmark = async () => {
     if (loadingBench) return;
@@ -80,6 +98,10 @@ async function runPrompt() {
             onClick={() => setActiveTab('optimized')}
           >CORE_SPEC</button>
           <button 
+            className={`px-3 py-1 text-[10px] font-header transition-all ${activeTab === 'playground' ? 'bg-[#39ff14] text-black' : 'text-[#7b2cbf] hover:text-[#39ff14]'}`}
+            onClick={() => setActiveTab('playground')}
+          >NEURAL_PLAYGROUND</button>
+          <button 
             className={`px-3 py-1 text-[10px] font-header transition-all ${activeTab === 'benchmark' ? 'bg-[#39ff14] text-black' : 'text-[#7b2cbf] hover:text-[#39ff14]'}`}
             onClick={runBenchmark}
           >NEURAL_BENCHMARK</button>
@@ -132,6 +154,61 @@ async function runPrompt() {
                   <CyberButton variant="secondary" className="text-[10px]" onClick={() => {
                     navigator.clipboard.writeText(analysis.optimizedPrompt);
                   }}>COPY_PROMPT</CyberButton>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'playground' && (
+              <div className="flex flex-col h-full p-2 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full">
+                  <div className="md:col-span-1 space-y-4 border-r border-[#39ff14]/10 pr-4 overflow-y-auto custom-scrollbar">
+                    <h6 className="text-[10px] text-[#39ff14] font-header uppercase mb-2">Variable_Injection</h6>
+                    {Object.keys(playgroundVars).length > 0 ? (
+                      Object.keys(playgroundVars).map(key => (
+                        <div key={key} className="space-y-1">
+                          <label className="text-[9px] text-gray-500 font-mono-tech uppercase">{key}</label>
+                          <input 
+                            type="text"
+                            value={playgroundVars[key]}
+                            onChange={(e) => setPlaygroundVars(prev => ({ ...prev, [key]: e.target.value }))}
+                            className="w-full bg-black/60 border border-[#7b2cbf]/30 p-2 text-[11px] text-[#39ff14] focus:border-[#39ff14] outline-none transition-all font-mono-tech"
+                            placeholder={`Enter ${key}...`}
+                          />
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-[10px] text-gray-600 italic">No variables detected in prompt.</p>
+                    )}
+                    <div className="pt-4">
+                      <CyberButton 
+                        variant="primary" 
+                        className="w-full py-2 text-[10px]" 
+                        onClick={runPlayground}
+                        disabled={loadingPlayground}
+                      >
+                        {loadingPlayground ? 'SIMULATING...' : 'EXECUTE_SIMULATION'}
+                      </CyberButton>
+                    </div>
+                  </div>
+                  <div className="md:col-span-2 flex flex-col h-full">
+                    <h6 className="text-[10px] text-gray-500 font-header uppercase mb-2">Neural_Output_Stream</h6>
+                    <div className="flex-grow bg-black/80 border border-[#39ff14]/10 p-4 text-[12px] text-[#e0e0e0] font-mono-tech overflow-y-auto custom-scrollbar relative">
+                      {loadingPlayground && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
+                          <div className="w-8 h-8 border-2 border-t-[#39ff14] border-transparent rounded-full animate-spin"></div>
+                        </div>
+                      )}
+                      {playgroundResult ? (
+                        <div className="whitespace-pre-wrap animate-fadeIn">
+                          {playgroundResult}
+                        </div>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-gray-700 italic text-[10px]">
+                          Awaiting neural simulation trigger...
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
