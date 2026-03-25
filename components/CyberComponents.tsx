@@ -22,9 +22,13 @@ export const CyberButton: React.FC<ButtonProps> = ({
 
   return (
     <button 
+      {...props}
       className={`${baseStyle} ${variants[variant]} ${className}`}
       disabled={isLoading}
-      {...props}
+      onClick={(e) => {
+        console.log("[ORION_DEBUG]: CyberButton clicked:", children);
+        if (props.onClick) props.onClick(e);
+      }}
     >
       <span className="relative z-10 flex items-center justify-center gap-2">
         {isLoading && (

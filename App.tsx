@@ -16,6 +16,7 @@ const App: React.FC = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [kernelStatus, setKernelStatus] = useState<'CONNECTING' | 'ONLINE' | 'OFFLINE'>('CONNECTING');
+  const [localError, setLocalError] = useState<string | null>(null);
   
   const editorRef = useRef<HTMLTextAreaElement>(null);
 
@@ -43,6 +44,7 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    console.log("[ORION_SYS]: App mounted. Initializing kernel...");
     initKernel();
   }, []);
 
@@ -99,19 +101,30 @@ const App: React.FC = () => {
 
   const handleOpenKeySelector = async () => {
     console.log("[ORION_SYS]: Solicitando seletor de chaves...");
+    setLocalError(null);
+    
     if (typeof window !== 'undefined' && (window as any).aistudio) {
       try {
         await (window as any).aistudio.openSelectKey();
-        console.log("[ORION_SYS]: Seletor aberto. Assumindo sucesso...");
-        setIsAuthenticated(true);
-        initKernel(true); 
+        console.log("[ORION_SYS]: Seletor aberto. Verificando seleção...");
+        
+        // Pequeno delay para garantir que o estado do sistema atualizou
+        await new Promise(r => setTimeout(r, 500));
+        
+        const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+        if (hasKey) {
+          setIsAuthenticated(true);
+          initKernel(true); 
+        } else {
+          setLocalError("Nenhuma chave foi selecionada. O acesso permanece bloqueado.");
+        }
       } catch (e) {
         console.error("[ORION_SYS]: Erro ao abrir seletor:", e);
-        setError("Falha ao abrir o seletor de chaves. Tente recarregar a página.");
+        setLocalError("Falha ao abrir o seletor de chaves. Tente recarregar a página.");
       }
     } else {
       console.error("[ORION_SYS]: API do AI Studio não detectada.");
-      setError("Ambiente AI Studio não detectado. Certifique-se de estar usando o preview oficial.");
+      setLocalError("Ambiente AI Studio não detectado. Certifique-se de estar usando o preview oficial.");
     }
   };
 
@@ -227,7 +240,27 @@ const App: React.FC = () => {
                   Documentação de Faturamento
                 </a>
               </div>
+
+              {localError && (
+                <div className="mb-6 p-3 border border-red-500/50 bg-red-500/10 text-[10px] text-red-500 uppercase animate-pulse">
+                  {localError}
+                </div>
+              )}
+
               <CyberButton onClick={handleOpenKeySelector}>AUTENTICAR_SISTEMA</CyberButton>
+              
+              <div className="mt-4">
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="text-[9px] text-gray-600 hover:text-gray-400 underline uppercase tracking-widest"
+                >
+                  [REBOOT_SYSTEM]
+                </button>
+              </div>
+              
+              <div className="mt-6 pt-4 border-t border-[#7b2cbf]/20 text-[8px] text-gray-600 uppercase tracking-widest">
+                Kernel_Status: {kernelStatus} | AI_Studio_API: {typeof window !== 'undefined' && (window as any).aistudio ? 'DETECTED' : 'MISSING'}
+              </div>
            </CyberPanel>
         </div>
       )}
