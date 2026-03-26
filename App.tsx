@@ -17,12 +17,18 @@ const App: React.FC = () => {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [kernelStatus, setKernelStatus] = useState<'CONNECTING' | 'ONLINE' | 'OFFLINE'>('CONNECTING');
   const [localError, setLocalError] = useState<string | null>(null);
+  const [manualKey, setManualKey] = useState<string>('');
+  const [isManualMode, setIsManualMode] = useState<boolean>(false);
   
   const editorRef = useRef<HTMLTextAreaElement>(null);
 
   const initKernel = async (skipAuthCheck = false) => {
     console.log("[ORION_SYS]: Sequência de boot iniciada...");
-    if (typeof window !== 'undefined' && (window as any).aistudio) {
+    
+    // Verifica se estamos no AI Studio
+    const isAiStudio = typeof window !== 'undefined' && (window as any).aistudio;
+    
+    if (isAiStudio) {
       try {
         let hasKey = true;
         if (!skipAuthCheck) {
@@ -40,6 +46,15 @@ const App: React.FC = () => {
         console.error("[ORION_SYS]: Erro no boot:", e);
         setKernelStatus('OFFLINE');
       }
+    } else {
+      console.warn("[ORION_SYS]: Ambiente externo detectado (Vercel/Standalone).");
+      // Se estivermos fora do AI Studio, verificamos se já temos uma chave manual ou env
+      const hasEnvKey = !!process.env.API_KEY;
+      if (!hasEnvKey && !manualKey) {
+        setIsAuthenticated(false);
+        setIsManualMode(true);
+      }
+      setKernelStatus('ONLINE'); // Assume online para permitir tentativa
     }
   };
 
@@ -97,6 +112,20 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSaveManualKey = () => {
+    if (manualKey.trim().length < 20) {
+      setLocalError("Chave de API inválida. Verifique o formato.");
+      return;
+    }
+    // Injeta a chave no ambiente global para o geminiService usar
+    (window as any).process = (window as any).process || { env: {} };
+    (window as any).process.env.API_KEY = manualKey.trim();
+    
+    setIsAuthenticated(true);
+    initKernel(true);
+    console.log("[ORION_SYS]: Chave manual injetada com sucesso.");
   };
 
   const handleOpenKeySelector = async () => {
@@ -247,7 +276,37 @@ const App: React.FC = () => {
                 </div>
               )}
 
-              <CyberButton onClick={handleOpenKeySelector}>AUTENTICAR_SISTEMA</CyberButton>
+              {!isManualMode ? (
+                <>
+                  <CyberButton onClick={handleOpenKeySelector}>AUTENTICAR_SISTEMA</CyberButton>
+                  <button 
+                    onClick={() => setIsManualMode(true)}
+                    className="mt-4 text-[9px] text-[#7b2cbf] hover:text-[#39ff14] uppercase tracking-widest transition-colors"
+                  >
+                    [USAR_CHAVE_MANUAL]
+                  </button>
+                </>
+              ) : (
+                <div className="space-y-4 animate-fadeIn">
+                  <div className="text-left">
+                    <label className="text-[9px] text-[#39ff14] uppercase mb-2 block">Insira sua Gemini API Key:</label>
+                    <input 
+                      type="password"
+                      value={manualKey}
+                      onChange={(e) => setManualKey(e.target.value)}
+                      placeholder="AIzaSy..."
+                      className="w-full bg-black/60 border border-[#39ff14]/30 p-3 text-xs text-[#39ff14] outline-none focus:border-[#39ff14] font-mono-tech"
+                    />
+                  </div>
+                  <CyberButton onClick={handleSaveManualKey} className="w-full">ATIVAR_NÚCLEO</CyberButton>
+                  <button 
+                    onClick={() => setIsManualMode(false)}
+                    className="text-[9px] text-gray-600 hover:text-gray-400 uppercase tracking-widest"
+                  >
+                    [VOLTAR]
+                  </button>
+                </div>
+              )}
               
               <div className="mt-4">
                 <button 
