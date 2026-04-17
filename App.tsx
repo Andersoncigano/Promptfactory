@@ -19,6 +19,7 @@ const App: React.FC = () => {
   const [localError, setLocalError] = useState<string | null>(null);
   const [manualKey, setManualKey] = useState<string>('');
   const [isManualMode, setIsManualMode] = useState<boolean>(false);
+  const STORAGE_KEY = 'ORION_API_KEY';
   
   const editorRef = useRef<HTMLTextAreaElement>(null);
 
@@ -60,6 +61,15 @@ const App: React.FC = () => {
 
   useEffect(() => {
     console.log("[ORION_SYS]: App mounted. Initializing kernel...");
+    
+    // Tenta recuperar chave persistida antes do boot
+    const savedKey = localStorage.getItem(STORAGE_KEY);
+    if (savedKey) {
+      console.log("[ORION_SYS]: Chave persistida detectada.");
+      setInternalApiKey(savedKey);
+      setManualKey(savedKey);
+    }
+    
     initKernel();
   }, []);
 
@@ -177,6 +187,7 @@ const App: React.FC = () => {
     
     // Injeta a chave no motor neural
     setInternalApiKey(manualKey.trim());
+    localStorage.setItem(STORAGE_KEY, manualKey.trim());
     
     setIsAuthenticated(true);
     initKernel(true);
@@ -213,6 +224,16 @@ const App: React.FC = () => {
     }
   };
 
+  const handleClearKey = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setManualKey('');
+    setInternalApiKey('');
+    setIsAuthenticated(false);
+    setIsManualMode(true);
+    setKernelStatus('OFFLINE');
+    console.log("[ORION_SYS]: Chave removida do armazenamento local.");
+  };
+
   return (
     <div className="min-h-screen bg-[#050505] text-[#e0e0e0] font-mono-tech">
       <div className="fixed inset-0 bg-grid-pattern opacity-10 pointer-events-none"></div>
@@ -234,6 +255,15 @@ const App: React.FC = () => {
                className="text-[10px] text-[#39ff14] border border-[#39ff14]/30 px-2 py-1 hover:bg-[#39ff14]/10"
              >
                RECONECTAR
+             </button>
+           )}
+           {isAuthenticated && manualKey && (
+             <button 
+               onClick={handleClearKey}
+               className="text-[10px] text-red-500 border border-red-500/30 px-2 py-1 hover:bg-red-500/10"
+               title="Remover chave salva"
+             >
+               LIMPAR_KEY
              </button>
            )}
            <select value={language} onChange={e => setLanguage(e.target.value as any)} className="bg-black border border-[#7b2cbf]/50 text-[#39ff14] px-2 py-1 text-[10px]">
