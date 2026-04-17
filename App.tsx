@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { optimizePrompt, checkConnection } from './services/geminiService.ts';
+import { optimizePrompt, checkConnection, setInternalApiKey } from './services/geminiService.ts';
 import { PromptAnalysis, HistoryItem } from './types.ts';
 import { CyberButton, CyberPanel, SectionHeader, CyberAlert, CyberModal } from './components/CyberComponents.tsx';
 import { AnalysisView } from './components/AnalysisView.tsx';
@@ -174,9 +174,9 @@ const App: React.FC = () => {
       setLocalError("Chave de API inválida. Verifique o formato.");
       return;
     }
-    // Injeta a chave no ambiente global para o geminiService usar
-    (window as any).process = (window as any).process || { env: {} };
-    (window as any).process.env.API_KEY = manualKey.trim();
+    
+    // Injeta a chave no motor neural
+    setInternalApiKey(manualKey.trim());
     
     setIsAuthenticated(true);
     initKernel(true);

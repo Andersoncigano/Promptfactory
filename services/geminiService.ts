@@ -61,9 +61,20 @@ const analysisSchema = {
   required: ["critique", "optimizedPrompt", "techniquesUsed", "grammarIssues", "score"],
 };
 
+let internalApiKey = process.env.API_KEY || "";
+
+export const setInternalApiKey = (key: string) => {
+    internalApiKey = key;
+    console.info("[ORION_LOG]: Núcleo neural atualizado com nova chave.");
+};
+
+const getAiInstance = () => {
+    return new GoogleGenAI({ apiKey: internalApiKey });
+};
+
 export const checkConnection = async (): Promise<boolean> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getAiInstance();
     await ai.models.generateContent({
       model: 'gemini-3.1-flash-lite-preview',
       contents: [{ parts: [{ text: 'ping' }] }],
@@ -71,22 +82,21 @@ export const checkConnection = async (): Promise<boolean> => {
     });
     return true;
   } catch (e) {
-    console.error("[ORION_LOG]: Falha no ping inicial.");
+    console.error("[ORION_LOG]: Falha no ping de rede neural.");
     return false;
   }
 };
 
 export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'en'): Promise<PromptAnalysis> => {
   try {
-      console.info("[ORION_LOG]: Iniciando otimização com Gemini 3 Flash (Free Tier)...");
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      console.info("[ORION_LOG]: Iniciando otimização neural...");
+      const ai = getAiInstance();
       
       const langInstruction = language === 'pt-BR' 
           ? "Responda em PORTUGUÊS (BRASIL). 'critique' e 'optimizedPrompt' devem estar em PT-BR."
           : "Respond in ENGLISH.";
 
       const response = await ai.models.generateContent({
-        // Trocado para Flash Lite para máxima velocidade
         model: 'gemini-3.1-flash-lite-preview',
         contents: [{ parts: [{ text: `Otimize e reconstrua este prompt para máxima eficiência: ${inputPrompt}` }] }],
         config: {
@@ -121,7 +131,7 @@ export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'e
 
 export const generatePreview = async (prompt: string): Promise<string> => {
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const ai = getAiInstance();
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: [{ parts: [{ text: prompt }] }],
