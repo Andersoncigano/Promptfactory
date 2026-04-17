@@ -81,14 +81,53 @@ const App: React.FC = () => {
     });
   }, [detectedVars]);
 
+  const [loadingMessage, setLoadingMessage] = useState<string>("Otimizando fluxo neural...");
+
   const handleOptimize = async () => {
     if (!inputPrompt.trim() || loading) return;
     
     setLoading(true);
+    setLoadingMessage("Iniciando reconstrução neural...");
     setError(null);
+    
+    const isRequestActive = { current: true };
+    
+    const timeoutId = setTimeout(() => {
+      if (isRequestActive.current) {
+        isRequestActive.current = false;
+        setLoading(false);
+        setError("O sistema neural demorou muito para responder. Isso pode ocorrer com prompts extremamente longos. Tente novamente ou aguarde mais tempo.");
+      }
+    }, 120000);
+
+    // Mensagens de progresso dinâmicas mais frequentes para melhor feedback
+    const progressInterval = setInterval(() => {
+      if (isRequestActive.current) {
+        const messages = [
+          "Injetando camadas de contexto...",
+          "Analisando estrutura semântica...",
+          "Aplicando técnicas de engenharia de prompt...",
+          "Refinando parâmetros de saída...",
+          "Validando sintaxe e gramática...",
+          "Estabilizando fluxo neural...",
+          "Quase lá, finalizando reconstrução..."
+        ];
+        const randomMsg = messages[Math.floor(Math.random() * messages.length)];
+        setLoadingMessage(randomMsg);
+      } else {
+        clearInterval(progressInterval);
+      }
+    }, 3000);
     
     try {
       const result = await optimizePrompt(inputPrompt, language);
+      
+      if (!isRequestActive.current) return;
+      isRequestActive.current = false;
+      clearTimeout(timeoutId);
+      clearInterval(progressInterval);
+      setLoading(false);
+      
       if (result) {
         setAnalysis(result);
         const newItem: HistoryItem = {
@@ -102,6 +141,15 @@ const App: React.FC = () => {
         setHistory(prev => [newItem, ...prev]);
       }
     } catch (err: any) {
+      if (!isRequestActive.current) {
+        setLoading(false);
+        return;
+      }
+      isRequestActive.current = false;
+      clearTimeout(timeoutId);
+      clearInterval(progressInterval);
+      setLoading(false);
+      
       const parts = err.message.split('|');
       const errorMessage = parts[1] || parts[0];
       setError(errorMessage);
@@ -110,7 +158,14 @@ const App: React.FC = () => {
         setIsAuthenticated(false);
       }
     } finally {
-      setLoading(false);
+      // O finally não precisa mais do IF se garantirmos o estado acima, 
+      // mas vamos deixar por segurança ou remover se redundante.
+      if (isRequestActive.current) {
+        isRequestActive.current = false;
+        clearTimeout(timeoutId);
+        clearInterval(progressInterval);
+        setLoading(false);
+      }
     }
   };
 
@@ -129,31 +184,32 @@ const App: React.FC = () => {
   };
 
   const handleOpenKeySelector = async () => {
-    console.log("[ORION_SYS]: Solicitando seletor de chaves...");
+    console.log("[ORION_SYS]: Tentativa de autenticação iniciada...");
     setLocalError(null);
     
-    if (typeof window !== 'undefined' && (window as any).aistudio) {
+    const isAiStudio = typeof window !== 'undefined' && (window as any).aistudio;
+
+    if (isAiStudio) {
       try {
         await (window as any).aistudio.openSelectKey();
-        console.log("[ORION_SYS]: Seletor aberto. Verificando seleção...");
+        console.log("[ORION_SYS]: Seletor do AI Studio solicitado.");
         
-        // Pequeno delay para garantir que o estado do sistema atualizou
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, 800));
         
         const hasKey = await (window as any).aistudio.hasSelectedApiKey();
         if (hasKey) {
           setIsAuthenticated(true);
           initKernel(true); 
         } else {
-          setLocalError("Nenhuma chave foi selecionada. O acesso permanece bloqueado.");
+          setLocalError("Nenhuma chave selecionada no AI Studio.");
         }
       } catch (e) {
-        console.error("[ORION_SYS]: Erro ao abrir seletor:", e);
-        setLocalError("Falha ao abrir o seletor de chaves. Tente recarregar a página.");
+        console.error("[ORION_SYS]: Erro no seletor nativo, alternando para manual:", e);
+        setIsManualMode(true);
       }
     } else {
-      console.error("[ORION_SYS]: API do AI Studio não detectada.");
-      setLocalError("Ambiente AI Studio não detectado. Certifique-se de estar usando o preview oficial.");
+      console.log("[ORION_SYS]: Fora do AI Studio. Ativando entrada manual de chave.");
+      setIsManualMode(true);
     }
   };
 
@@ -187,7 +243,7 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="relative z-10 max-w-7xl mx-auto p-6">
+      <main className="relative z-10 max-w-[95vw] mx-auto p-6">
         {error && <CyberAlert title="KERNEL_REPORT" message={error} onClose={() => setError(null)} />}
 
         {analysis ? (
@@ -201,13 +257,16 @@ const App: React.FC = () => {
                     ref={editorRef}
                     value={inputPrompt}
                     onChange={e => setInputPrompt(e.target.value)}
-                    placeholder="Cole seu prompt aqui para iniciar a reconstrução neural (Gemini 3 Flash)..."
-                    className="w-full h-[500px] bg-black/20 border-none outline-none resize-none p-4 text-[#39ff14] text-lg font-mono-tech custom-scrollbar"
+                    placeholder="Cole seu prompt aqui para iniciar a reconstrução neural (Suporta prompts longos)..."
+                    className="w-full h-[650px] bg-black/20 border-none outline-none resize-y p-4 text-[#39ff14] text-lg font-mono-tech custom-scrollbar"
                   />
+                  <div className="absolute bottom-2 right-4 text-[10px] text-[#39ff14]/50 pointer-events-none">
+                    {inputPrompt.length.toLocaleString()} CARACTERES
+                  </div>
                   {loading && (
                     <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-20">
                       <div className="w-16 h-16 border-4 border-t-[#39ff14] border-transparent rounded-full animate-spin"></div>
-                      <p className="text-[#39ff14] text-xs mt-4 animate-pulse uppercase tracking-[0.3em]">Otimizando fluxo neural...</p>
+                      <p className="text-[#39ff14] text-xs mt-4 animate-pulse uppercase tracking-[0.3em]">{loadingMessage}</p>
                     </div>
                   )}
                 </div>

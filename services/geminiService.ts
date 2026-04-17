@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 import { PromptAnalysis, ModelConfig, PerformanceMetrics } from "../types.ts";
 
 const handleGenAIError = (error: any): never => {
@@ -65,7 +65,7 @@ export const checkConnection = async (): Promise<boolean> => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3.1-flash-lite-preview',
       contents: [{ parts: [{ text: 'ping' }] }],
       config: { maxOutputTokens: 1 }
     });
@@ -86,15 +86,18 @@ export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'e
           : "Respond in ENGLISH.";
 
       const response = await ai.models.generateContent({
-        // Trocado para Flash para permitir uso gratuito
-        model: 'gemini-3-flash-preview',
+        // Trocado para Flash Lite para máxima velocidade
+        model: 'gemini-3.1-flash-lite-preview',
         contents: [{ parts: [{ text: `Otimize e reconstrua este prompt para máxima eficiência: ${inputPrompt}` }] }],
         config: {
-            systemInstruction: `Você é ORION, Arquiteto de Prompts Sênior. Sua tarefa é transformar inputs em especificações de alta fidelidade usando técnicas avançadas. ${langInstruction}`,
+            systemInstruction: `Você é ORION, Arquiteto de Prompts Sênior. Sua tarefa é transformar inputs (mesmo os mais longos e complexos) em especificações de alta fidelidade usando técnicas avançadas. Não resuma o conteúdo a menos que solicitado; mantenha a riqueza de detalhes do prompt original na versão otimizada. ${langInstruction}`,
             responseMimeType: "application/json",
             responseSchema: analysisSchema,
-            temperature: 0.7,
-            thinkingConfig: { thinkingBudget: 4096 } // Budget reduzido para maior velocidade em contas gratuitas
+            temperature: 0.4,
+            maxOutputTokens: 16384,
+            thinkingConfig: { 
+                thinkingLevel: ThinkingLevel.MINIMAL
+            } 
         },
       });
 
