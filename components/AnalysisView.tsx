@@ -94,19 +94,19 @@ async function runPrompt() {
         </CyberButton>
         <div className="flex gap-2 bg-black/40 border border-[#7b2cbf]/30 p-1">
           <button 
-            className={`px-3 py-1 text-[10px] font-header transition-all ${activeTab === 'optimized' ? 'bg-[#39ff14] text-black' : 'text-[#7b2cbf] hover:text-[#39ff14]'}`}
+            className={`px-3 py-1 text-[10px] font-header transition-all ${activeTab === 'optimized' ? 'bg-[#ff00ff] text-black' : 'text-[#7b2cbf] hover:text-[#ff00ff]'}`}
             onClick={() => setActiveTab('optimized')}
           >CORE_SPEC</button>
           <button 
-            className={`px-3 py-1 text-[10px] font-header transition-all ${activeTab === 'playground' ? 'bg-[#39ff14] text-black' : 'text-[#7b2cbf] hover:text-[#39ff14]'}`}
+            className={`px-3 py-1 text-[10px] font-header transition-all ${activeTab === 'playground' ? 'bg-[#ff00ff] text-black' : 'text-[#7b2cbf] hover:text-[#ff00ff]'}`}
             onClick={() => setActiveTab('playground')}
           >NEURAL_PLAYGROUND</button>
           <button 
-            className={`px-3 py-1 text-[10px] font-header transition-all ${activeTab === 'benchmark' ? 'bg-[#39ff14] text-black' : 'text-[#7b2cbf] hover:text-[#39ff14]'}`}
+            className={`px-3 py-1 text-[10px] font-header transition-all ${activeTab === 'benchmark' ? 'bg-[#ff00ff] text-black' : 'text-[#7b2cbf] hover:text-[#ff00ff]'}`}
             onClick={runBenchmark}
           >NEURAL_BENCHMARK</button>
           <button 
-            className={`px-3 py-1 text-[10px] font-header transition-all ${activeTab === 'code' ? 'bg-[#39ff14] text-black' : 'text-[#7b2cbf] hover:text-[#39ff14]'}`}
+            className={`px-3 py-1 text-[10px] font-header transition-all ${activeTab === 'code' ? 'bg-[#ff00ff] text-black' : 'text-[#7b2cbf] hover:text-[#ff00ff]'}`}
             onClick={() => setActiveTab('code')}
           >EXPORT_MODULE</button>
         </div>
@@ -122,9 +122,9 @@ async function runPrompt() {
                    <p className="text-gray-400 italic">{analysis.critique}</p>
                 </div>
                 <div>
-                   <h5 className="text-[#39ff14] font-bold mb-1 uppercase tracking-tighter border-b border-[#39ff14]/20 pb-1">STRATEGIES</h5>
+                   <h5 className="text-[#ff00ff] font-bold mb-1 uppercase tracking-tighter border-b border-[#ff00ff]/20 pb-1">STRATEGIES</h5>
                    <div className="flex flex-wrap gap-1 mt-2">
-                      {analysis.techniquesUsed.map(t => <span key={t} className="px-1 bg-[#39ff14]/10 border border-[#39ff14]/30 text-[8px] text-[#39ff14]">{t}</span>)}
+                      {analysis.techniquesUsed.map(t => <span key={t} className="px-1 bg-[#ff00ff]/10 border border-[#ff00ff]/30 text-[8px] text-[#ff00ff]">{t}</span>)}
                    </div>
                 </div>
              </div>
@@ -135,8 +135,8 @@ async function runPrompt() {
           <CyberPanel className="h-full relative overflow-hidden">
             {loadingBench && (
               <div className="absolute inset-0 bg-black/80 z-20 flex flex-col items-center justify-center">
-                <div className="w-12 h-12 border-2 border-t-[#39ff14] border-transparent rounded-full animate-spin"></div>
-                <p className="text-[#39ff14] text-[10px] mt-4 font-mono-tech animate-pulse">RUNNING_NEURAL_BENCHMARK...</p>
+                <div className="w-12 h-12 border-2 border-t-[#ff00ff] border-transparent rounded-full animate-spin"></div>
+                <p className="text-[#ff00ff] text-[10px] mt-4 font-mono-tech animate-pulse">RUNNING_NEURAL_BENCHMARK...</p>
               </div>
             )}
             
@@ -144,7 +144,7 @@ async function runPrompt() {
 
             {activeTab === 'optimized' && (
               <div className="flex flex-col h-full">
-                <div className="flex-grow p-4 bg-black/40 border border-[#39ff14]/10 font-mono-tech text-sm text-[#39ff14] whitespace-pre-wrap overflow-y-auto custom-scrollbar">
+                <div className="flex-grow p-4 bg-black/40 border border-[#ff00ff]/10 font-mono-tech text-sm text-[#ff00ff] whitespace-pre-wrap overflow-y-auto custom-scrollbar">
                   {analysis.optimizedPrompt}
                 </div>
                 <div className="mt-4 flex justify-between items-center">
@@ -161,8 +161,8 @@ async function runPrompt() {
             {activeTab === 'playground' && (
               <div className="flex flex-col h-full p-2 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full">
-                  <div className="md:col-span-1 space-y-4 border-r border-[#39ff14]/10 pr-4 overflow-y-auto custom-scrollbar">
-                    <h6 className="text-[10px] text-[#39ff14] font-header uppercase mb-2">Variable_Injection</h6>
+                  <div className="md:col-span-1 space-y-4 border-r border-[#ff00ff]/10 pr-4 overflow-y-auto custom-scrollbar">
+                    <h6 className="text-[10px] text-[#ff00ff] font-header uppercase mb-2">Variable_Injection</h6>
                     {Object.keys(playgroundVars).length > 0 ? (
                       Object.keys(playgroundVars).map(key => (
                         <div key={key} className="space-y-1">
@@ -171,7 +171,7 @@ async function runPrompt() {
                             type="text"
                             value={playgroundVars[key]}
                             onChange={(e) => setPlaygroundVars(prev => ({ ...prev, [key]: e.target.value }))}
-                            className="w-full bg-black/60 border border-[#7b2cbf]/30 p-2 text-[11px] text-[#39ff14] focus:border-[#39ff14] outline-none transition-all font-mono-tech"
+                            className="w-full bg-black/60 border border-[#7b2cbf]/30 p-2 text-[11px] text-[#ff00ff] focus:border-[#ff00ff] outline-none transition-all font-mono-tech"
                             placeholder={`Enter ${key}...`}
                           />
                         </div>
@@ -192,10 +192,10 @@ async function runPrompt() {
                   </div>
                   <div className="md:col-span-2 flex flex-col h-full">
                     <h6 className="text-[10px] text-gray-500 font-header uppercase mb-2">Neural_Output_Stream</h6>
-                    <div className="flex-grow bg-black/80 border border-[#39ff14]/10 p-4 text-[12px] text-[#e0e0e0] font-mono-tech overflow-y-auto custom-scrollbar relative">
+                    <div className="flex-grow bg-black/80 border border-[#ff00ff]/10 p-4 text-[12px] text-[#e0e0e0] font-mono-tech overflow-y-auto custom-scrollbar relative">
                       {loadingPlayground && (
                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
-                          <div className="w-8 h-8 border-2 border-t-[#39ff14] border-transparent rounded-full animate-spin"></div>
+                          <div className="w-8 h-8 border-2 border-t-[#ff00ff] border-transparent rounded-full animate-spin"></div>
                         </div>
                       )}
                       {playgroundResult ? (
@@ -222,8 +222,8 @@ async function runPrompt() {
                    </div>
                 </div>
                 <div className="flex flex-col pl-4">
-                   <h6 className="text-[10px] text-[#39ff14] mb-2 uppercase tracking-tighter font-header">Optimized_Response</h6>
-                   <div className="flex-grow bg-black/80 p-3 text-[11px] text-[#e0e0e0] font-mono-tech overflow-y-auto custom-scrollbar border border-[#39ff14]/10">
+                   <h6 className="text-[10px] text-[#ff00ff] mb-2 uppercase tracking-tighter font-header">Optimized_Response</h6>
+                   <div className="flex-grow bg-black/80 p-3 text-[11px] text-[#e0e0e0] font-mono-tech overflow-y-auto custom-scrollbar border border-[#ff00ff]/10">
                       {benchResults?.optimized || "Awaiting benchmark execution..."}
                    </div>
                 </div>

@@ -15,7 +15,7 @@ export const CyberButton: React.FC<ButtonProps> = ({
   const baseStyle = "relative px-6 py-3 font-header font-bold uppercase tracking-wider transition-all duration-200 clip-path-polygon disabled:opacity-50 disabled:cursor-not-allowed group overflow-hidden";
   
   const variants = {
-    primary: "bg-[#39ff14] text-black hover:bg-white hover:shadow-[0_0_15px_#39ff14]",
+    primary: "bg-[#ff00ff] text-black hover:bg-white hover:shadow-[0_0_15px_#ff00ff]",
     secondary: "bg-transparent border border-[#7b2cbf] text-[#7b2cbf] hover:bg-[#7b2cbf] hover:text-white hover:shadow-[0_0_15px_#7b2cbf]",
     danger: "bg-transparent border border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
   };
@@ -49,13 +49,13 @@ export const CyberPanel: React.FC<{ children: React.ReactNode; className?: strin
   return (
     <div className={`relative bg-black/60 border border-[#7b2cbf]/50 backdrop-blur-sm p-1 ${className}`}>
       {/* Corner Accents */}
-      <div className="absolute -top-[1px] -left-[1px] w-4 h-4 border-t-2 border-l-2 border-[#39ff14]"></div>
-      <div className="absolute -top-[1px] -right-[1px] w-4 h-4 border-t-2 border-r-2 border-[#39ff14]"></div>
-      <div className="absolute -bottom-[1px] -left-[1px] w-4 h-4 border-b-2 border-l-2 border-[#39ff14]"></div>
-      <div className="absolute -bottom-[1px] -right-[1px] w-4 h-4 border-b-2 border-r-2 border-[#39ff14]"></div>
+      <div className="absolute -top-[1px] -left-[1px] w-4 h-4 border-t-2 border-l-2 border-[#ff00ff]"></div>
+      <div className="absolute -top-[1px] -right-[1px] w-4 h-4 border-t-2 border-r-2 border-[#ff00ff]"></div>
+      <div className="absolute -bottom-[1px] -left-[1px] w-4 h-4 border-b-2 border-l-2 border-[#ff00ff]"></div>
+      <div className="absolute -bottom-[1px] -right-[1px] w-4 h-4 border-b-2 border-r-2 border-[#ff00ff]"></div>
       
       {title && (
-        <div className="absolute -top-3 left-6 bg-[#050505] px-2 text-[#39ff14] text-xs font-header tracking-widest border border-[#39ff14]/30">
+        <div className="absolute -top-3 left-6 bg-[#050505] px-2 text-[#ff00ff] text-xs font-header tracking-widest border border-[#ff00ff]/30">
           {title}
         </div>
       )}
@@ -70,7 +70,7 @@ export const CyberPanel: React.FC<{ children: React.ReactNode; className?: strin
 export const SectionHeader: React.FC<{ title: string; subtitle?: string }> = ({ title, subtitle }) => (
   <div className="mb-6 border-b border-[#7b2cbf]/30 pb-2">
     <h2 className="text-2xl font-header text-[#e0e0e0] uppercase tracking-widest flex items-center gap-2">
-      <span className="w-2 h-6 bg-[#39ff14]"></span>
+      <span className="w-2 h-6 bg-[#ff00ff]"></span>
       {title}
     </h2>
     {subtitle && <p className="text-[#7b2cbf] text-sm font-mono-tech mt-1 tracking-wider">{subtitle}</p>}
@@ -88,7 +88,7 @@ export const CyberRange: React.FC<{
     return (
         <div className="w-full">
             <div className="flex justify-between mb-1 font-mono-tech text-xs">
-                <span className="text-[#39ff14]">{label}</span>
+                <span className="text-[#ff00ff]">{label}</span>
                 <span className="text-[#e0e0e0]">{value}</span>
             </div>
             <input 
@@ -98,7 +98,7 @@ export const CyberRange: React.FC<{
                 step={step} 
                 value={value}
                 onChange={(e) => onChange(parseFloat(e.target.value))}
-                className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#39ff14]"
+                className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#ff00ff]"
             />
         </div>
     );
@@ -110,9 +110,9 @@ export const CyberStatCard: React.FC<{
     subValue?: string;
     variant?: 'normal' | 'alert' | 'success'; 
 }> = ({ label, value, subValue, variant = 'normal' }) => {
-    let colorClass = "text-[#39ff14]";
+    let colorClass = "text-[#ff00ff]";
     if (variant === 'alert') colorClass = "text-red-500";
-    if (variant === 'success') colorClass = "text-[#39ff14]";
+    if (variant === 'success') colorClass = "text-[#ff00ff]";
     if (variant === 'normal') colorClass = "text-[#e0e0e0]";
 
     return (
@@ -135,9 +135,9 @@ export const CyberTooltip: React.FC<{ content: string; children: React.ReactNode
     >
       {children}
       {isVisible && (
-        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-black border border-[#39ff14] text-xs text-[#e0e0e0] font-mono-tech z-50 shadow-[0_0_10px_rgba(57,255,20,0.2)]">
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-black border border-[#ff00ff] text-xs text-[#e0e0e0] font-mono-tech z-50 shadow-[0_0_10px_rgba(255,0,255,0.2)]">
           {content}
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-[#39ff14]"></div>
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-[#ff00ff]"></div>
         </div>
       )}
     </div>
@@ -153,7 +153,7 @@ export const CyberModal: React.FC<{ isOpen: boolean; onClose: () => void; title:
       <div className="relative w-full max-w-2xl animate-fadeIn">
         <CyberPanel title={title}>
           <div className="absolute top-4 right-4">
-            <button onClick={onClose} className="text-[#7b2cbf] hover:text-[#39ff14] transition-colors">
+            <button onClick={onClose} className="text-[#7b2cbf] hover:text-[#ff00ff] transition-colors">
               [CLOSE_X]
             </button>
           </div>

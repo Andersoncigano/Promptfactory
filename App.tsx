@@ -240,19 +240,19 @@ const App: React.FC = () => {
       
       <header className="relative z-10 border-b border-[#7b2cbf]/30 bg-black/80 p-4 sticky top-0 backdrop-blur-md flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#39ff14] clip-path-polygon flex items-center justify-center text-black font-bold shadow-[0_0_10px_#39ff14]">O</div>
+          <div className="w-8 h-8 bg-[#ff00ff] clip-path-polygon flex items-center justify-center text-black font-bold shadow-[0_0_10px_#ff00ff]">O</div>
           <h1 className="text-lg font-header tracking-tighter text-white">ORION_IDE</h1>
         </div>
         
         <div className="flex gap-4 items-center">
            <div className="flex items-center gap-2 px-3 py-1 border border-[#7b2cbf]/30 bg-black/40">
-             <div className={`w-2 h-2 rounded-full ${kernelStatus === 'ONLINE' ? 'bg-[#39ff14] animate-pulse' : kernelStatus === 'CONNECTING' ? 'bg-yellow-500' : 'bg-red-600'}`}></div>
+             <div className={`w-2 h-2 rounded-full ${kernelStatus === 'ONLINE' ? 'bg-[#ff00ff] animate-pulse' : kernelStatus === 'CONNECTING' ? 'bg-yellow-500' : 'bg-red-600'}`}></div>
              <span className="text-[10px] text-gray-400 uppercase tracking-widest">{kernelStatus}</span>
            </div>
            {kernelStatus === 'OFFLINE' && (
              <button 
                onClick={() => handleOpenKeySelector()}
-               className="text-[10px] text-[#39ff14] border border-[#39ff14]/30 px-2 py-1 hover:bg-[#39ff14]/10"
+               className="text-[10px] text-[#ff00ff] border border-[#ff00ff]/30 px-2 py-1 hover:bg-[#ff00ff]/10"
              >
                RECONECTAR
              </button>
@@ -266,7 +266,7 @@ const App: React.FC = () => {
                LIMPAR_KEY
              </button>
            )}
-           <select value={language} onChange={e => setLanguage(e.target.value as any)} className="bg-black border border-[#7b2cbf]/50 text-[#39ff14] px-2 py-1 text-[10px]">
+           <select value={language} onChange={e => setLanguage(e.target.value as any)} className="bg-black border border-[#7b2cbf]/50 text-[#ff00ff] px-2 py-1 text-[10px]">
              <option value="pt-BR">POR_BR</option>
              <option value="en">ENG_US</option>
            </select>
@@ -288,15 +288,15 @@ const App: React.FC = () => {
                     value={inputPrompt}
                     onChange={e => setInputPrompt(e.target.value)}
                     placeholder="Cole seu prompt aqui para iniciar a reconstrução neural (Suporta prompts longos)..."
-                    className="w-full h-[650px] bg-black/20 border-none outline-none resize-y p-4 text-[#39ff14] text-lg font-mono-tech custom-scrollbar"
+                    className="w-full h-[650px] bg-black/20 border-none outline-none resize-y p-4 text-[#ff00ff] text-lg font-mono-tech custom-scrollbar"
                   />
-                  <div className="absolute bottom-2 right-4 text-[10px] text-[#39ff14]/50 pointer-events-none">
+                  <div className="absolute bottom-2 right-4 text-[10px] text-[#ff00ff]/50 pointer-events-none">
                     {inputPrompt.length.toLocaleString()} CARACTERES
                   </div>
                   {loading && (
                     <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-20">
-                      <div className="w-16 h-16 border-4 border-t-[#39ff14] border-transparent rounded-full animate-spin"></div>
-                      <p className="text-[#39ff14] text-xs mt-4 animate-pulse uppercase tracking-[0.3em]">{loadingMessage}</p>
+                      <div className="w-16 h-16 border-4 border-t-[#ff00ff] border-transparent rounded-full animate-spin"></div>
+                      <p className="text-[#ff00ff] text-xs mt-4 animate-pulse uppercase tracking-[0.3em]">{loadingMessage}</p>
                     </div>
                   )}
                 </div>
@@ -321,15 +321,15 @@ const App: React.FC = () => {
                       type="text" 
                       value={variables[v] || ''} 
                       onChange={e => setVariables(prev => ({...prev, [v]: e.target.value}))}
-                      className="w-full bg-black/40 border border-[#7b2cbf]/30 p-2 text-xs text-[#39ff14] outline-none focus:border-[#39ff14]"
+                      className="w-full bg-black/40 border border-[#7b2cbf]/30 p-2 text-xs text-[#ff00ff] outline-none focus:border-[#ff00ff]"
                     />
                   </div>
                 ))}
                 {detectedVars.length === 0 && <p className="text-gray-600 text-[10px] text-center italic">Use [CHAVES] para mapear campos.</p>}
               </CyberPanel>
               
-              <div className="p-4 border border-[#39ff14]/20 bg-[#39ff14]/5">
-                <h4 className="text-[#39ff14] text-[10px] font-bold mb-2">SISTEMA_ORION</h4>
+              <div className="p-4 border border-[#ff00ff]/20 bg-[#ff00ff]/5">
+                <h4 className="text-[#ff00ff] text-[10px] font-bold mb-2">SISTEMA_ORION</h4>
                 <p className="text-[9px] text-gray-500 leading-tight">
                   Operando em modo de compatibilidade Gemini 3 Flash. Funciona com qualquer API Key válida do Google AI Studio.
                 </p>
@@ -342,7 +342,7 @@ const App: React.FC = () => {
       {!isAuthenticated && (
         <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-6">
            <CyberPanel title="SISTEMA_BLOQUEADO" className="max-w-md w-full text-center">
-              <h2 className="text-[#39ff14] font-header text-xl mb-4 tracking-widest">ACESSO_NEGADO</h2>
+              <h2 className="text-[#ff00ff] font-header text-xl mb-4 tracking-widest">ACESSO_NEGADO</h2>
               <p className="text-gray-400 text-xs mb-4 uppercase tracking-tighter">
                 O Project Orion exige uma chave de API válida para interagir com os modelos Gemini. 
                 Sua chave será armazenada apenas nesta sessão.
@@ -370,7 +370,7 @@ const App: React.FC = () => {
                   <CyberButton onClick={handleOpenKeySelector}>AUTENTICAR_SISTEMA</CyberButton>
                   <button 
                     onClick={() => setIsManualMode(true)}
-                    className="mt-4 text-[9px] text-[#7b2cbf] hover:text-[#39ff14] uppercase tracking-widest transition-colors"
+                    className="mt-4 text-[9px] text-[#7b2cbf] hover:text-[#ff00ff] uppercase tracking-widest transition-colors"
                   >
                     [USAR_CHAVE_MANUAL]
                   </button>
@@ -378,13 +378,13 @@ const App: React.FC = () => {
               ) : (
                 <div className="space-y-4 animate-fadeIn">
                   <div className="text-left">
-                    <label className="text-[9px] text-[#39ff14] uppercase mb-2 block">Insira sua Gemini API Key:</label>
+                    <label className="text-[9px] text-[#ff00ff] uppercase mb-2 block">Insira sua Gemini API Key:</label>
                     <input 
                       type="password"
                       value={manualKey}
                       onChange={(e) => setManualKey(e.target.value)}
                       placeholder="AIzaSy..."
-                      className="w-full bg-black/60 border border-[#39ff14]/30 p-3 text-xs text-[#39ff14] outline-none focus:border-[#39ff14] font-mono-tech"
+                      className="w-full bg-black/60 border border-[#ff00ff]/30 p-3 text-xs text-[#ff00ff] outline-none focus:border-[#ff00ff] font-mono-tech"
                     />
                   </div>
                   <CyberButton onClick={handleSaveManualKey} className="w-full">ATIVAR_NÚCLEO</CyberButton>

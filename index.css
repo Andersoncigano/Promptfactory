@@ -8,8 +8,8 @@
 
 .bg-grid-pattern {
   background-size: 40px 40px;
-  background-image: linear-gradient(to right, rgba(57, 255, 20, 0.05) 1px, transparent 1px),
-                    linear-gradient(to bottom, rgba(57, 255, 20, 0.05) 1px, transparent 1px);
+  background-image: linear-gradient(to right, rgba(255, 0, 255, 0.05) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(255, 0, 255, 0.05) 1px, transparent 1px);
 }
 
 .clip-path-polygon {
@@ -30,5 +30,5 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #39ff14;
+  background: #ff00ff;
 }
