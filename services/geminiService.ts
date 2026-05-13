@@ -76,7 +76,7 @@ export const checkConnection = async (): Promise<boolean> => {
   try {
     const ai = getAiInstance();
     await ai.models.generateContent({
-      model: 'gemini-3.1-flash-lite-preview',
+      model: 'gemini-3-flash-preview',
       contents: [{ parts: [{ text: 'ping' }] }],
       config: { maxOutputTokens: 1 }
     });
@@ -97,17 +97,23 @@ export const optimizePrompt = async (inputPrompt: string, language: 'pt-BR' | 'e
           : "Respond in ENGLISH.";
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.1-flash-lite-preview',
-        contents: [{ parts: [{ text: `Otimize e reconstrua este prompt para máxima eficiência: ${inputPrompt}` }] }],
+        model: 'gemini-3-flash-preview',
+        contents: [{ parts: [{ text: `Realize uma engenharia forense e reconstrua este prompt para máxima performance: ${inputPrompt}` }] }],
         config: {
-            systemInstruction: `Você é ORION, Arquiteto de Prompts Sênior. Sua tarefa é transformar inputs (mesmo os mais longos e complexos) em especificações de alta fidelidade usando técnicas avançadas. Não resuma o conteúdo a menos que solicitado; mantenha a riqueza de detalhes do prompt original na versão otimizada. ${langInstruction}`,
+            systemInstruction: `Você é ORION, o Arquiteto-Chefe de Engenharia de Prompts de Nível 5. Sua missão é transformar instruções brutas em comandos de elite para sistemas de IA de ponta.
+            
+            DIRETRIZES DE RIGIDEZ:
+            1. ANÁLISE FORENSE: Antes de otimizar, identifique a real intenção (Goal), o público-alvo (Audience) e as restrições (Constraints) implícitas no input.
+            2. FRAMEWORK ESTRUTURAL: A resposta otimizada DEVE seguir uma estrutura profissional (Contexto, Tarefa, Instruções Passo-a-Passo, Restrições, Formato de Saída).
+            3. RIQUEZA SEMÂNTICA: Não economize em técnica. Use Delimitadores (e.g., ###), Personas complexas, e Chain-of-Thought explicito.
+            4. DIAGNÓSTICO: No campo 'critique', seja impiedoso e técnico. Aponte exatamente onde o prompt original falha (vagalidades, falta de contexto, instruções contraditórias).
+            5. PRESERVAÇÃO: Nunca remova informações base; transforme-as em diretrizes estruturadas.
+            
+            ${langInstruction}`,
             responseMimeType: "application/json",
             responseSchema: analysisSchema,
-            temperature: 0.4,
-            maxOutputTokens: 16384,
-            thinkingConfig: { 
-                thinkingLevel: ThinkingLevel.MINIMAL
-            } 
+            temperature: 0.5,
+            maxOutputTokens: 16384
         },
       });
 
